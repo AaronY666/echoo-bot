@@ -11,10 +11,13 @@
   "author": "amber.ye",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^24.10.0",
     "@vitejs/plugin-react": "^4.3.4",
     "cross-env": "7.0.3",
     "electron": "^39.1.1",
     "electron-is-dev": "^3.0.1",
+    "sass": "^1.93.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "vite": "^6.0.3"
   },

@@ -3,31 +3,50 @@
  * 可同时用于渲染进程和主进程
  */
 
-// ========== 事件名枚举 ==========
-const DragEvents = {
+import type { IpcRenderer } from "electron";
+import type { BrowserWindow, IpcMain, Screen, App } from "electron/main";
+
+//--------------  事件名枚举  --------------
+
+export const DragEvents = {
   DRAG_WINDOW: "drag-window",
   STOP_DRAG: "stop-drag",
   MINIMIZE_WINDOW: "minimize-window",
   CLOSE_WINDOW: "close-window",
-};
+} as const;
 
-// ========== 渲染进程端（React 使用） ==========
-class DragManagerRenderer {
+//--------------  类型定义  --------------
+
+interface DragOffset {
+  x: number;
+  y: number;
+}
+
+interface DragWindowData {
+  clientX: number;
+  clientY: number;
+  offsetX: number;
+  offsetY: number;
+}
+
+//--------------  渲染进程端（React 使用）  --------------
+
+export class DragManagerRenderer {
+  private ipcRenderer: IpcRenderer | null = null;
+  private dragOffset: DragOffset = { x: 0, y: 0 };
+  private isDragging: boolean = false;
+
   constructor() {
-    this.ipcRenderer = null;
-    this.dragOffset = { x: 0, y: 0 };
-    this.isDragging = false;
-
     // 初始化 ipcRenderer（只在渲染进程中有效）
-    if (typeof window !== "undefined" && window.require) {
-      this.ipcRenderer = window.require("electron").ipcRenderer;
+    if (typeof window !== "undefined" && (window as any).require) {
+      this.ipcRenderer = (window as any).require("electron").ipcRenderer;
     }
   }
 
   /**
    * 开始拖拽 - 保存鼠标偏移量
    */
-  startDrag(offsetX, offsetY) {
+  startDrag(offsetX: number, offsetY: number): void {
     this.isDragging = true;
     this.dragOffset = { x: offsetX, y: offsetY };
     console.log("💾 开始拖拽，保存偏移量:", this.dragOffset);
@@ -36,7 +55,7 @@ class DragManagerRenderer {
   /**
    * 拖动窗口
    */
-  dragWindow(clientX, clientY) {
+  dragWindow(clientX: number, clientY: number): void {
     if (!this.ipcRenderer) {
       console.warn("⚠️ ipcRenderer 不可用");
       return;
@@ -57,7 +76,7 @@ class DragManagerRenderer {
   /**
    * 停止拖拽
    */
-  stopDrag() {
+  stopDrag(): void {
     if (!this.ipcRenderer) return;
 
     this.isDragging = false;
@@ -68,7 +87,7 @@ class DragManagerRenderer {
   /**
    * 最小化窗口
    */
-  minimizeWindow() {
+  minimizeWindow(): void {
     if (!this.ipcRenderer) return;
     this.ipcRenderer.send(DragEvents.MINIMIZE_WINDOW);
   }
@@ -76,7 +95,7 @@ class DragManagerRenderer {
   /**
    * 关闭窗口
    */
-  closeWindow() {
+  closeWindow(): void {
     if (!this.ipcRenderer) return;
     this.ipcRenderer.send(DragEvents.CLOSE_WINDOW);
   }
@@ -84,10 +103,15 @@ class DragManagerRenderer {
   /**
    * 设置拖拽事件监听（用于 React 组件）
    */
-  setupDragListeners(element, onDragStart, onDragging, onDragEnd) {
-    if (!element) return;
+  setupDragListeners(
+    element: HTMLElement,
+    onDragStart?: () => void,
+    onDragging?: () => void,
+    onDragEnd?: () => void
+  ): () => void {
+    if (!element) return () => {};
 
-    const handleMouseDown = (e) => {
+    const handleMouseDown = (e: MouseEvent): void => {
       e.preventDefault();
       
       const rect = element.getBoundingClientRect();
@@ -97,12 +121,12 @@ class DragManagerRenderer {
       this.startDrag(offsetX, offsetY);
       if (onDragStart) onDragStart();
 
-      const handleMouseMove = (moveEvent) => {
+      const handleMouseMove = (moveEvent: MouseEvent): void => {
         this.dragWindow(moveEvent.clientX, moveEvent.clientY);
         if (onDragging) onDragging();
       };
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (): void => {
         this.stopDrag();
         if (onDragEnd) onDragEnd();
         document.removeEventListener("mousemove", handleMouseMove);
@@ -122,9 +146,15 @@ class DragManagerRenderer {
   }
 }
 
-// ========== 主进程端（Electron Main 使用） ==========
-class DragManagerMain {
-  constructor(mainWindow, ipcMain, screen, app) {
+//--------------  主进程端（Electron Main 使用）  --------------
+
+export class DragManagerMain {
+  private mainWindow: BrowserWindow;
+  private ipcMain: IpcMain;
+  private screen: Screen;
+  private app: App;
+
+  constructor(mainWindow: BrowserWindow, ipcMain: IpcMain, screen: Screen, app: App) {
     this.mainWindow = mainWindow;
     this.ipcMain = ipcMain;
     this.screen = screen;
@@ -141,13 +171,13 @@ class DragManagerMain {
   /**
    * 设置所有 IPC 监听器
    */
-  setupListeners() {
+  setupListeners(): void {
     if (!this.ipcMain) return;
 
     // 拖动窗口
     this.ipcMain.on(
       DragEvents.DRAG_WINDOW,
-      (event, { clientX, clientY, offsetX, offsetY }) => {
+      (_event, { clientX, clientY, offsetX, offsetY }: DragWindowData) => {
         this.handleDragWindow(offsetX, offsetY);
       }
     );
@@ -173,7 +203,7 @@ class DragManagerMain {
   /**
    * 处理窗口拖动
    */
-  handleDragWindow(offsetX, offsetY) {
+  private handleDragWindow(offsetX: number, offsetY: number): void {
     if (!this.mainWindow || !this.screen) {
       console.error("❌ mainWindow 或 screen 不可用");
       return;
@@ -189,7 +219,7 @@ class DragManagerMain {
   /**
    * 处理拖拽结束
    */
-  handleStopDrag() {
+  private handleStopDrag(): void {
     // 可以在这里添加拖拽结束后的逻辑
     // 例如：保存窗口位置
   }
@@ -197,7 +227,7 @@ class DragManagerMain {
   /**
    * 处理窗口最小化
    */
-  handleMinimize() {
+  private handleMinimize(): void {
     if (!this.mainWindow) return;
     this.mainWindow.minimize();
   }
@@ -205,7 +235,7 @@ class DragManagerMain {
   /**
    * 处理窗口关闭
    */
-  handleClose() {
+  private handleClose(): void {
     if (!this.app) return;
     this.app.quit();
   }
@@ -213,7 +243,7 @@ class DragManagerMain {
   /**
    * 清理所有监听器
    */
-  cleanup() {
+  cleanup(): void {
     if (!this.ipcMain) return;
 
     this.ipcMain.removeAllListeners(DragEvents.DRAG_WINDOW);
@@ -225,7 +255,8 @@ class DragManagerMain {
   }
 }
 
-// ========== 导出 ==========
+//--------------  导出  --------------
+
 // CommonJS 导出（用于 Electron 主进程）
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -235,5 +266,3 @@ if (typeof module !== "undefined" && module.exports) {
   };
 }
 
-// ES6 导出（用于 React）
-export { DragEvents, DragManagerRenderer, DragManagerMain };
