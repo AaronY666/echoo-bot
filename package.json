@@ -1,0 +1,29 @@
+{
+  "name": "echoo-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:debug": "concurrently \"vite\" \"wait-on http://localhost:5173 && cross-env DEBUG=true electron .\"",
+    "build": "vite build"
+  },
+  "author": "amber.ye",
+  "license": "ISC",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "7.0.3",
+    "electron": "^39.1.1",
+    "electron-is-dev": "^3.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^6.0.3"
+  },
+  "dependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "concurrently": "^8.2.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "wait-on": "^7.2.0"
+  }
+}
