@@ -3,8 +3,8 @@
  * 可同时用于渲染进程和主进程
  */
 
-import type { IpcRenderer } from "electron";
 import type { BrowserWindow, IpcMain, Screen, App } from "electron/main";
+import { ipcEvent } from "./ipcEvent";
 
 //--------------  事件名枚举  --------------
 
@@ -32,16 +32,8 @@ interface DragWindowData {
 //--------------  渲染进程端（React 使用）  --------------
 
 export class DragManagerRenderer {
-  private ipcRenderer: IpcRenderer | null = null;
   private dragOffset: DragOffset = { x: 0, y: 0 };
   private isDragging: boolean = false;
-
-  constructor() {
-    // 初始化 ipcRenderer（只在渲染进程中有效）
-    if (typeof window !== "undefined" && (window as any).require) {
-      this.ipcRenderer = (window as any).require("electron").ipcRenderer;
-    }
-  }
 
   /**
    * 开始拖拽 - 保存鼠标偏移量
@@ -56,16 +48,12 @@ export class DragManagerRenderer {
    * 拖动窗口
    */
   dragWindow(clientX: number, clientY: number): void {
-    if (!this.ipcRenderer) {
-      console.warn("⚠️ ipcRenderer 不可用");
-      return;
-    }
     if (!this.isDragging) {
       console.warn("⚠️ 未处于拖拽状态");
       return;
     }
 
-    this.ipcRenderer.send(DragEvents.DRAG_WINDOW, {
+    ipcEvent.emit(DragEvents.DRAG_WINDOW, {
       clientX,
       clientY,
       offsetX: this.dragOffset.x,
@@ -77,10 +65,8 @@ export class DragManagerRenderer {
    * 停止拖拽
    */
   stopDrag(): void {
-    if (!this.ipcRenderer) return;
-
     this.isDragging = false;
-    this.ipcRenderer.send(DragEvents.STOP_DRAG);
+    ipcEvent.emit(DragEvents.STOP_DRAG);
     console.log("🖱️ 拖拽结束");
   }
 
@@ -88,16 +74,14 @@ export class DragManagerRenderer {
    * 最小化窗口
    */
   minimizeWindow(): void {
-    if (!this.ipcRenderer) return;
-    this.ipcRenderer.send(DragEvents.MINIMIZE_WINDOW);
+    ipcEvent.emit(DragEvents.MINIMIZE_WINDOW);
   }
 
   /**
    * 关闭窗口
    */
   closeWindow(): void {
-    if (!this.ipcRenderer) return;
-    this.ipcRenderer.send(DragEvents.CLOSE_WINDOW);
+    ipcEvent.emit(DragEvents.CLOSE_WINDOW);
   }
 
   /**
@@ -113,7 +97,7 @@ export class DragManagerRenderer {
 
     const handleMouseDown = (e: MouseEvent): void => {
       e.preventDefault();
-      
+
       const rect = element.getBoundingClientRect();
       const offsetX = e.clientX - rect.left;
       const offsetY = e.clientY - rect.top;
@@ -154,7 +138,12 @@ export class DragManagerMain {
   private screen: Screen;
   private app: App;
 
-  constructor(mainWindow: BrowserWindow, ipcMain: IpcMain, screen: Screen, app: App) {
+  constructor(
+    mainWindow: BrowserWindow,
+    ipcMain: IpcMain,
+    screen: Screen,
+    app: App
+  ) {
     this.mainWindow = mainWindow;
     this.ipcMain = ipcMain;
     this.screen = screen;
@@ -265,4 +254,3 @@ if (typeof module !== "undefined" && module.exports) {
     DragManagerMain,
   };
 }
-

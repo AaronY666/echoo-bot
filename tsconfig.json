@@ -17,7 +17,9 @@
     /* Path Mapping */
     "baseUrl": ".",
     "paths": {
-      "@services/*": ["./src/services/*"]
+      "@services/*": ["./src/services/*"],
+      "@components/*": ["./src/components/*"],
+      "@hooks/*": ["./src/hooks/*"]
     },
 
     /* Linting */

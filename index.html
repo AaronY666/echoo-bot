@@ -30,8 +30,16 @@
   <body>
     <div id="root"></div>
 
+    <!-- Live2D Cubism 2 Runtime -->
+    <script src="https://cdn.jsdelivr.net/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js"></script>
+    
+    <!-- Live2D Cubism 4 Runtime -->
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    
     <script>
       console.log("📄 HTML加载完成");
+      console.log("Live2D Cubism 2:", typeof window.Live2D);
+      console.log("Live2D Cubism 4:", typeof window.Live2DCubismCore);
     </script>
     <script type="module" src="/src/index.tsx"></script>
   </body>

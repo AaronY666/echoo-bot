@@ -7,17 +7,22 @@ class Application {
   private windowManager: WindowManager | null = null;
 
   createWindow(): void {
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+
     this.mainWindow = new BrowserWindow({
-      width: 300,
-      height: 300,
-      x: 100,
-      y: 100,
+      width: width,
+      height: height,
+      x: 0,
+      y: 0,
       frame: false,
       transparent: true,
       alwaysOnTop: true,
       resizable: false,
       show: false,
       hasShadow: false,
+      skipTaskbar: true, // 不显示在任务栏
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
@@ -25,6 +30,9 @@ class Application {
         backgroundThrottling: false,
       },
     });
+
+    // 设置窗口可以点击穿透（除了有内容的区域）
+    this.mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
     // 开发模式：加载Vite开发服务器
     if (process.env.NODE_ENV === 'development' || !app.isPackaged) {

@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import "./App.scss";
-import { DragManagerRenderer } from "@services/dragManager";
 import { Live2DPet, Live2DPetHandle } from "@components/Live2DPet";
-import { TestControls } from "@components/TestControls";
+import { ipcEvent } from "@services/ipcEvent";
 
 // 扩展 Window 接口
 declare global {
@@ -12,7 +11,6 @@ declare global {
       onPetMessage: (listener: (event: any, message: any) => void) => void;
       minimizeWindow: () => void;
       closeWindow: () => void;
-      dragWindow: (x: number, y: number) => void;
       sendUserInput: (input: string) => void;
       startListening: () => void;
       stopListening: () => void;
@@ -20,17 +18,14 @@ declare global {
   }
 }
 
-// 创建拖拽管理器实例
-const dragManager = new DragManagerRenderer();
-
 function App() {
   const live2dPetRef = useRef<Live2DPetHandle>(null);
 
   useEffect(() => {
     console.log("✅ React组件已加载");
 
-    // 设置消息监听器
-    const handlePetMessage = (event: any, message: any) => {
+    // 使用 ipcEvent 监听来自主进程的消息
+    const unsubscribePetMessage = ipcEvent.on("pet-message", (message: any) => {
       console.log("📨 收到消息:", message);
 
       if (live2dPetRef.current) {
@@ -45,46 +40,22 @@ function App() {
             console.warn("未知消息类型:", message.type);
         }
       }
-    };
+    });
 
-    // 监听Electron消息（如果可用）
-    if (window.electronAPI) {
-      window.electronAPI.onPetMessage(handlePetMessage);
-      console.log("✅ Electron API 已连接");
-    } else {
-      console.log("⚠️ Electron API 不可用（可能是浏览器环境）");
-    }
-
-    // 开发环境下添加测试消息
-    if (process.env.NODE_ENV === "development") {
-      // 延迟发送欢迎消息，确保组件已加载
-      setTimeout(() => {
-        if (live2dPetRef.current) {
-          live2dPetRef.current.setExpression("happy");
-          setTimeout(() => {
-            live2dPetRef.current?.speak("你好！我是你的智能桌宠");
-          }, 1000);
-        }
-      }, 2000);
-    }
+    // 检查运行环境
+    const env = ipcEvent.getEnvironment();
+    console.log(`ℹ️ 当前运行环境: ${env}`);
 
     return () => {
-      // 清理工作（如果需要）
+      // 清理：取消事件监听
+      unsubscribePetMessage();
     };
   }, []);
 
   return (
     <div className="app">
-      {/* 替换原来的Pet组件为Live2DPet */}
-      <Live2DPet
-        ref={live2dPetRef}
-        dragManager={dragManager}
-      />
-
-      {/* 开发环境下的测试控件 */}
-      {process.env.NODE_ENV === "development" && (
-        <TestControls />
-      )}
+      {/* Live2D桌面宠物 - 集成拖拽功能 */}
+      <Live2DPet ref={live2dPetRef} />
     </div>
   );
 }
