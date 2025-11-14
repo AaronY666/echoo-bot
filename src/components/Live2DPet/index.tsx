@@ -25,6 +25,12 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
 
   // 控制按钮显示状态
   const [showControls, setShowControls] = React.useState<boolean>(false);
+  
+  //--------------  聊天输入相关状态  --------------
+  const [showInput, setShowInput] = React.useState<boolean>(false);
+  const [userMessage, setUserMessage] = React.useState<string>("");
+  const [aiResponse, setAiResponse] = React.useState<string>("");
+  const [isThinking, setIsThinking] = React.useState<boolean>(false);
 
   // 使用 Live2D Hook（状态由 Hook 管理）
   const {
@@ -41,11 +47,11 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     scale: 0.15,
   });
 
-  // 使用拖拽 Hook（排除控制按钮）
+  // 使用拖拽 Hook（排除控制按钮和输入框）
   const { isDragging } = useDrag(containerRef, {
     width: 300,
     height: 400,
-    excludeSelector: ".control-btn",
+    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn",
     enableMousePassthrough: true,
   });
 
@@ -78,7 +84,7 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     },
   }));
 
-  /** 窗口控制函数 */
+  //--------------  窗口控制函数  --------------
   const handleMinimize = (): void => {
     ipcEvent.emit("minimize-window");
   };
@@ -86,6 +92,57 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   const handleClose = (): void => {
     ipcEvent.emit("close-window");
   };
+
+  //--------------  聊天功能函数  --------------
+  /** 切换输入框显示 */
+  const toggleInput = (): void => {
+    setShowInput(!showInput);
+  };
+
+  /** 发送消息给主进程 */
+  const handleSendMessage = (): void => {
+    const trimmedMessage = userMessage.trim();
+    if (!trimmedMessage) return;
+
+    // 发送给主进程
+    ipcEvent.emit("send-chat-message", trimmedMessage);
+    
+    // 清空输入框，显示思考状态
+    setUserMessage("");
+    setIsThinking(true);
+    setAiResponse(""); // 清空上次响应
+  };
+
+  /** 处理回车发送 */
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  //--------------  监听 Python 响应  --------------
+  useEffect(() => {
+    const unsubscribe = ipcEvent.on("chat-response", (data: any) => {
+      const response = data.message || data;
+      
+      // 显示响应
+      setAiResponse(response);
+      setIsThinking(false);
+      
+      // 触发 live2d 说话
+      if (manager) {
+        manager.speak(response);
+      }
+      
+      // 5秒后自动清除响应
+      setTimeout(() => {
+        setAiResponse("");
+      }, 5000);
+    });
+
+    return unsubscribe;
+  }, [manager]);
 
   return (
     <div
@@ -100,6 +157,13 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
       {/* 控制按钮 - 仅在鼠标悬停时显示 */}
       {showControls && (
         <div className="control-buttons">
+        <button
+          className="control-btn chat-btn"
+          onClick={toggleInput}
+          title="聊天"
+        >
+          💬
+        </button>
         <button
           className="control-btn minimize-btn"
           onClick={handleMinimize}
@@ -152,6 +216,42 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
         {currentExpression && <div>表情: {currentExpression}</div>}
         {isSpeaking && <div>🗣️ 说话中</div>}
       </div>
+
+      {/* AI 响应气泡 */}
+      {(aiResponse || isThinking) && (
+        <div className="ai-response-bubble">
+          {isThinking ? (
+            <div className="thinking-indicator">
+              <span className="dot"></span>
+              <span className="dot"></span>
+              <span className="dot"></span>
+            </div>
+          ) : (
+            <div className="response-text">{aiResponse}</div>
+          )}
+        </div>
+      )}
+
+      {/* 聊天输入框 - 在桌宠下方悬浮 */}
+      {showInput && (
+        <div className="chat-input-container">
+          <textarea
+            className="chat-input"
+            value={userMessage}
+            onChange={(e) => setUserMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="和我聊天吧... (Enter发送, Shift+Enter换行)"
+            rows={2}
+          />
+          <button
+            className="send-btn"
+            onClick={handleSendMessage}
+            disabled={!userMessage.trim() || isThinking}
+          >
+            {isThinking ? "⏳" : "发送"}
+          </button>
+        </div>
+      )}
     </div>
   );
 });

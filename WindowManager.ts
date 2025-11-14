@@ -1,5 +1,6 @@
 import { ipcMain, app } from "electron/main";
 import type { BrowserWindow } from "electron/main";
+import type { PythonProcessManager } from "./PythonProcessManager";
 
 /**
  * 窗口管理器 - 处理窗口相关的 IPC 通信
@@ -7,10 +8,13 @@ import type { BrowserWindow } from "electron/main";
  */
 class WindowManager {
   private mainWindow: BrowserWindow;
+  private pythonManager: PythonProcessManager | null;
 
-  constructor(mainWindow: BrowserWindow) {
+  constructor(mainWindow: BrowserWindow, pythonManager?: PythonProcessManager) {
     this.mainWindow = mainWindow;
+    this.pythonManager = pythonManager || null;
     this.setupIPC();
+    this.setupPythonHandlers();
   }
 
   /**
@@ -38,7 +42,38 @@ class WindowManager {
       }
     );
 
+    //--------------  聊天相关 IPC  --------------
+    // 接收前端的聊天消息，转发给 Python 进程
+    ipcMain.on("send-chat-message", (_event, message: string) => {
+      console.log(`💬 收到前端聊天消息:`, message);
+      if (this.pythonManager) {
+        this.pythonManager.sendChatMessage(message);
+      } else {
+        console.warn("⚠️ Python 进程未启动，无法发送消息");
+      }
+    });
+
     console.log("✅ WindowManager IPC 监听器已设置");
+  }
+
+  /**
+   * 设置 Python 消息处理器
+   */
+  setupPythonHandlers(): void {
+    if (!this.pythonManager) {
+      console.log("ℹ️ 未提供 Python 进程管理器，跳过消息处理器设置");
+      return;
+    }
+
+    // 监听 Python 的聊天响应，转发给前端
+    this.pythonManager.onMessage("chat_response", (data: any) => {
+      console.log(`🤖 收到 Python 聊天响应:`, data.message);
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send("chat-response", data);
+      }
+    });
+
+    console.log("✅ Python 消息处理器已设置");
   }
 
   /**
@@ -48,6 +83,7 @@ class WindowManager {
     ipcMain.removeAllListeners("minimize-window");
     ipcMain.removeAllListeners("close-window");
     ipcMain.removeAllListeners("set-ignore-mouse-events");
+    ipcMain.removeAllListeners("send-chat-message");
     console.log("🧹 WindowManager 监听器已清理");
   }
 }
