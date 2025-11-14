@@ -7,6 +7,7 @@ import React, {
 import { useDrag } from "@hooks/useDrag";
 import { useLive2D } from "@hooks/useLive2D";
 import { ipcEvent } from "@services/ipcEvent";
+import { DialogBubble } from "@components/DialogBubble";
 import "./index.scss";
 
 /** Live2D宠物组件暴露的方法 */
@@ -47,11 +48,11 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     scale: 0.15,
   });
 
-  // 使用拖拽 Hook（排除控制按钮和输入框）
+  // 使用拖拽 Hook（排除控制按钮、输入框和对话气泡）
   const { isDragging } = useDrag(containerRef, {
     width: 300,
     height: 400,
-    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn",
+    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .dialog-bubble",
     enableMousePassthrough: true,
   });
 
@@ -121,12 +122,19 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     }
   };
 
+  //--------------  气泡隐藏处理  --------------
+  /** 气泡隐藏时的回调 */
+  const handleBubbleHide = (): void => {
+    setAiResponse("");
+    setIsThinking(false);
+  };
+
   //--------------  监听 Python 响应  --------------
   useEffect(() => {
     const unsubscribe = ipcEvent.on("chat-response", (data: any) => {
       const response = data.message || data;
       
-      // 显示响应
+      // 设置响应内容
       setAiResponse(response);
       setIsThinking(false);
       
@@ -134,11 +142,6 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
       if (manager) {
         manager.speak(response);
       }
-      
-      // 5秒后自动清除响应
-      setTimeout(() => {
-        setAiResponse("");
-      }, 5000);
     });
 
     return unsubscribe;
@@ -217,20 +220,14 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
         {isSpeaking && <div>🗣️ 说话中</div>}
       </div>
 
-      {/* AI 响应气泡 */}
-      {(aiResponse || isThinking) && (
-        <div className="ai-response-bubble">
-          {isThinking ? (
-            <div className="thinking-indicator">
-              <span className="dot"></span>
-              <span className="dot"></span>
-              <span className="dot"></span>
-            </div>
-          ) : (
-            <div className="response-text">{aiResponse}</div>
-          )}
-        </div>
-      )}
+      {/* AI 响应气泡 - 游戏风格分页 */}
+      <DialogBubble
+        content={aiResponse}
+        isVisible={!!(aiResponse || isThinking)}
+        isThinking={isThinking}
+        onHide={handleBubbleHide}
+        charsPerPage={100}
+      />
 
       {/* 聊天输入框 - 在桌宠下方悬浮 */}
       {showInput && (
@@ -243,13 +240,22 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
             placeholder="和我聊天吧... (Enter发送, Shift+Enter换行)"
             rows={2}
           />
-          <button
-            className="send-btn"
-            onClick={handleSendMessage}
-            disabled={!userMessage.trim() || isThinking}
-          >
-            {isThinking ? "⏳" : "发送"}
-          </button>
+          <div className="button-group">
+            <button
+              className="close-input-btn"
+              onClick={toggleInput}
+              title="关闭输入框"
+            >
+              关闭
+            </button>
+            <button
+              className="send-btn"
+              onClick={handleSendMessage}
+              disabled={!userMessage.trim() || isThinking}
+            >
+              {isThinking ? "⏳" : "发送"}
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -56,7 +56,7 @@ export class PythonProcessManager {
       // 处理标准输出
       this.process.stdout?.on("data", (data) => {
         const output = data.toString().trim();
-        console.log(`[Python stdout] ${output}`);
+        // console.log(`[Python stdout] ${output}`);
 
         // 尝试解析 JSON 消息
         try {
@@ -122,7 +122,7 @@ export class PythonProcessManager {
   }
 
   /**
-   * 注册消息处理器
+   * 注册消息处理器,用于接收Python进程返回的消息
    */
   onMessage(type: string, handler: (data: any) => void): void {
     this.messageHandlers.set(type, handler);
@@ -152,26 +152,5 @@ export class PythonProcessManager {
         console.error(`❌ 消息处理器错误 [${message.type}]:`, err);
       }
     }
-
-    // 默认处理器（向后兼容）
-    switch (message.type) {
-      case "progress":
-        console.log(
-          `📊 进度: ${message.step}/${message.total} - ${message.message}`
-        );
-        break;
-
-      case "complete":
-        console.log(`✅ 完成: ${message.data.message}`);
-        break;
-
-      case "error":
-        console.error(`❌ 错误: ${message.message}`);
-        break;
-
-      default:
-        console.log(`📨 消息:`, message);
-    }
   }
 }
-

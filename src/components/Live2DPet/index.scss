@@ -6,9 +6,9 @@
     cursor: move;
     transition: none; // 拖拽时不需要过渡动画
     
-    // 初始位置：屏幕左上角
-    left: 100px;
-    top: 100px;
+    // 初始位置：屏幕右下角
+    right: 100px;
+    bottom: 140px;
 
     .live2d-canvas {
         width: 100%;
@@ -191,8 +191,9 @@
     //--------------  聊天输入框  --------------
     .chat-input-container {
         position: absolute;
-        top: 410px; // 在桌宠下方
+        bottom: 0; // 在桌宠下方
         left: 0;
+        transform: translateY(100%);
         width: 100%;
         background: rgba(255, 255, 255, 0.95);
         border-radius: 8px;
@@ -224,87 +225,51 @@
             }
         }
 
-        .send-btn {
-            align-self: flex-end;
-            padding: 6px 20px;
-            background: #2196f3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.2s;
-
-            &:hover:not(:disabled) {
-                background: #1976d2;
-            }
-
-            &:disabled {
-                background: rgba(0, 0, 0, 0.2);
-                cursor: not-allowed;
-            }
-        }
-    }
-
-    //--------------  AI 响应气泡  --------------
-    .ai-response-bubble {
-        position: absolute;
-        top: -60px; // 在桌宠上方
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(33, 150, 243, 0.95);
-        color: white;
-        padding: 10px 15px;
-        border-radius: 12px;
-        max-width: 280px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        z-index: 15;
-        animation: bubblePop 0.3s ease-out;
-
-        .response-text {
-            font-size: 13px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .thinking-indicator {
+        .button-group {
             display: flex;
-            gap: 4px;
-            justify-content: center;
-            align-items: center;
-            padding: 5px 0;
+            gap: 8px;
+            justify-content: flex-end;
 
-            .dot {
-                width: 8px;
-                height: 8px;
-                background: white;
-                border-radius: 50%;
-                animation: thinking 1.4s infinite ease-in-out;
+            .close-input-btn {
+                padding: 6px 16px;
+                background: #f5f5f5;
+                color: #666;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-                &:nth-child(1) {
-                    animation-delay: -0.32s;
+                &:hover {
+                    background: #e0e0e0;
+                    color: #333;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+                }
+            }
+
+            .send-btn {
+                padding: 6px 20px;
+                background: #2196f3;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background-color 0.2s;
+
+                &:hover:not(:disabled) {
+                    background: #1976d2;
                 }
 
-                &:nth-child(2) {
-                    animation-delay: -0.16s;
+                &:disabled {
+                    background: rgba(0, 0, 0, 0.2);
+                    cursor: not-allowed;
                 }
             }
         }
-
-        // 气泡尾巴
-        &::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 8px solid rgba(33, 150, 243, 0.95);
-        }
     }
+
 }
 
 // 动画定义
@@ -350,36 +315,12 @@
 @keyframes slideDown {
     0% {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(calc(100% - 10px)); // 基于100%位置，向上偏移10px开始
     }
 
     100% {
         opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes bubblePop {
-    0% {
-        opacity: 0;
-        transform: translateX(-50%) scale(0.8);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1);
-    }
-}
-
-@keyframes thinking {
-    0%, 80%, 100% {
-        transform: scale(0);
-        opacity: 0.5;
-    }
-
-    40% {
-        transform: scale(1);
-        opacity: 1;
+        transform: translateY(100%); // 回到正常的100%位置
     }
 }
 

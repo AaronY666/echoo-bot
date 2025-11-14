@@ -1,0 +1,149 @@
+//--------------  游戏风格对话气泡  --------------
+.dialog-bubble {
+    position: absolute;
+    top: 40px; // 在桌宠上方，调整小尾巴位置
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%); // 完全在桌宠上方
+    background: rgba(33, 150, 243, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    min-width: 200px; // 最小宽度，确保文本能撑开
+    max-width: 400px; // 最大宽度
+    width: fit-content; // 根据内容自适应
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 15;
+    animation: bubblePop 0.3s ease-out;
+    pointer-events: auto; // 确保可以接收鼠标事件
+    user-select: none; // 禁止文本选择，避免拖拽误触
+
+    // 气泡文本
+    .bubble-text {
+        font-size: 14px;
+        line-height: 1.5;
+        word-wrap: break-word;
+        white-space: pre-wrap; // 保留换行符
+        margin-bottom: 4px;
+        // 不限制高度，通过分页控制内容量
+    }
+
+    // 页码指示器
+    .page-indicator {
+        margin-top: 8px;
+        font-size: 11px;
+        opacity: 0.7;
+        font-weight: 500;
+    }
+
+    // 下一页提示（跳动的小三角形）
+    .next-page-indicator {
+        margin-top: 8px;
+        text-align: center;
+
+        .triangle {
+            display: inline-block;
+            font-size: 16px;
+            animation: bounce 1s infinite ease-in-out;
+            color: rgba(255, 255, 255, 0.9);
+        }
+    }
+
+    // 关闭提示（最后一页）
+    .close-hint {
+        margin-top: 8px;
+        text-align: center;
+        font-size: 11px;
+        opacity: 0.8;
+        animation: fadeInOut 2s infinite ease-in-out;
+    }
+
+    // 思考中动画
+    .thinking-indicator {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+        align-items: center;
+        padding: 5px 0;
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: thinking 1.4s infinite ease-in-out;
+
+            &:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            &:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+        }
+    }
+
+    // 气泡尾巴（指向桌宠）
+    &::after {
+        content: "";
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 10px solid transparent;
+        border-right: 10px solid transparent;
+        border-top: 10px solid rgba(33, 150, 243, 0.95);
+    }
+}
+
+//--------------  动画定义  --------------
+@keyframes bubblePop {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+}
+
+@keyframes bounce {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateY(-4px);
+        opacity: 0.7;
+    }
+}
+
+@keyframes thinking {
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInOut {
+    0%, 100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
