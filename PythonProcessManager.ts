@@ -23,6 +23,7 @@ export class PythonProcessManager {
   private args: string[];
   private cwd: string;
   private messageHandlers: Map<string, (data: any) => void> = new Map();
+  private outputBuffer: string = ""; // 用于缓冲不完整的行
 
   constructor(options: PythonProcessOptions) {
     this.scriptPath = options.scriptPath;
@@ -53,18 +54,30 @@ export class PythonProcessManager {
         stdio: ["pipe", "pipe", "pipe"], // stdin, stdout, stderr
       });
 
-      // 处理标准输出
+      // 处理标准输出（逐行解析，支持多行和分批数据）
       this.process.stdout?.on("data", (data) => {
-        const output = data.toString().trim();
-        // console.log(`[Python stdout] ${output}`);
-
-        // 尝试解析 JSON 消息
-        try {
-          const message = JSON.parse(output);
-          this.handleMessage(message);
-        } catch (err) {
-          // 非 JSON 输出，直接打印
-          console.log(`[Python] ${output}`);
+        // 将新数据追加到缓冲区
+        this.outputBuffer += data.toString();
+        
+        // 按行分割
+        const lines = this.outputBuffer.split("\n");
+        
+        // 保留最后一个不完整的行在缓冲区
+        this.outputBuffer = lines.pop() || "";
+        
+        // 处理每一行
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue; // 跳过空行
+          
+          // 尝试解析 JSON
+          try {
+            const message = JSON.parse(trimmedLine);
+            this.handleMessage(message);
+          } catch (err) {
+            // 非 JSON 输出，直接打印（这些应该是 stderr，但以防万一）
+            console.log(`[Python] ${trimmedLine}`);
+          }
         }
       });
 
@@ -77,6 +90,18 @@ export class PythonProcessManager {
       // 处理进程退出
       this.process.on("close", (code) => {
         console.log(`🛑 Python 进程已退出，退出码: ${code}`);
+        
+        // 处理剩余的缓冲区数据
+        if (this.outputBuffer.trim()) {
+          try {
+            const message = JSON.parse(this.outputBuffer.trim());
+            this.handleMessage(message);
+          } catch (err) {
+            console.log(`[Python] ${this.outputBuffer.trim()}`);
+          }
+        }
+        
+        this.outputBuffer = "";
         this.process = null;
       });
 
@@ -98,6 +123,7 @@ export class PythonProcessManager {
     if (this.process) {
       console.log("⏹️ 停止 Python 进程");
       this.process.kill();
+      this.outputBuffer = ""; // 清空缓冲区
       this.process = null;
     }
   }

@@ -1,36 +1,37 @@
 """
 AI 助手主程序 - 基于 stdin/stdout 的消息处理
-支持多种功能：聊天、图片生成、视频生成等
+使用 LangGraph 架构，支持智能路由和复杂工作流
+
+注意：
+- 日志输出到 stderr
+- JSON 响应输出到 stdout
 """
 import sys
 import json
-from agent.message_router import MessageRouter
-from agent.chat_handler import ChatHandler
+from agent.langgraph_agent import LangGraphAgent
+from agent.logger import log
 
 
 def main():
-    """主函数 - 初始化路由器并处理消息"""
+    """主函数 - 初始化 LangGraph Agent 并处理消息"""
     try:
-        # 初始化消息路由器
-        router = MessageRouter()
+        #-------------- 初始化 LangGraph Agent --------------
+        agent = LangGraphAgent()
         
-        # 注册聊天处理器
-        router.register(ChatHandler())
-        
-        # TODO: 后续可以添加更多处理器
-        # router.register(ImageHandler())
-        # router.register(VideoHandler())
-        
-        # 发送就绪消息
+        #-------------- 发送就绪消息 --------------
         ready_message = {
             "type": "ready",
-            "message": "AI助手已启动",
-            "available_handlers": router.get_registered_types()
+            "message": "AI助手已启动 (LangGraph架构)",
+            "available_handlers": ["chat", "image", "video", "quick_and_detailed"]
         }
+        # 就绪消息输出到 stdout（JSON 格式）
         print(json.dumps(ready_message, ensure_ascii=False))
         sys.stdout.flush()
         
-        # 主循环：从 stdin 读取消息
+        # 日志输出到 stderr
+        log("✅ AI 助手已启动，等待消息...")
+        
+        #-------------- 主循环：从 stdin 读取消息 --------------
         for line in sys.stdin:
             try:
                 # 跳过空行
@@ -41,15 +42,16 @@ def main():
                 # 解析 JSON 消息
                 message = json.loads(line)
                 
-                # 路由消息到对应的处理器
-                response = router.route(message)
+                # 使用 LangGraph Agent 处理消息
+                response = agent.process(message)
                 
-                # 输出响应
+                # 输出响应到 stdout（JSON 格式）
                 print(json.dumps(response, ensure_ascii=False))
                 sys.stdout.flush()
                 
             except json.JSONDecodeError as e:
                 # JSON 解析错误
+                log(f"❌ JSON 解析错误: {str(e)}")
                 error_response = {
                     "type": "error",
                     "message": f"JSON 解析错误: {str(e)}"
@@ -59,6 +61,7 @@ def main():
                 
             except Exception as e:
                 # 其他未知错误
+                log(f"❌ 未知错误: {str(e)}")
                 error_response = {
                     "type": "error",
                     "message": f"未知错误: {str(e)}"
@@ -68,6 +71,7 @@ def main():
     
     except Exception as e:
         # 初始化失败
+        log(f"❌ 初始化失败: {str(e)}")
         error_response = {
             "type": "error",
             "message": f"初始化失败: {str(e)}"
@@ -79,3 +83,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

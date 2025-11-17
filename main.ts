@@ -63,14 +63,14 @@ class Application {
     this.windowManager = new WindowManager(this.mainWindow, this.pythonManager || undefined);
   }
 
-  /** 启动 Python 子进程（测试） */
+  /** 启动 Python 子进程 */
   async startPythonProcess(): Promise<void> {
     try {
-      // 开发模式：脚本在项目根目录
+      // 开发模式：使用项目根目录的 agent.py
       // 生产模式：脚本应该和打包后的应用在一起
       const scriptPath = app.isPackaged
-        ? path.join(process.resourcesPath, "demo.py")
-        : path.join(app.getAppPath(), "demo.py");
+        ? path.join(process.resourcesPath, "agent.py")
+        : path.join(app.getAppPath(), "agent.py");
       
       console.log(`📍 Python 脚本路径: ${scriptPath}`);
       

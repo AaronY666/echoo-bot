@@ -15,6 +15,8 @@ interface UseDragOptions {
   excludeSelector?: string;
   /** 是否启用鼠标穿透控制（Electron 环境） */
   enableMousePassthrough?: boolean;
+  /** 额外的高度（如输入框） */
+  extraHeight?: number;
 }
 
 interface DragState {
@@ -36,6 +38,7 @@ export function useDrag(
     height,
     excludeSelector,
     enableMousePassthrough = true,
+    extraHeight = 0,
   } = options;
 
   const dragStateRef = useRef<DragState>({
@@ -102,19 +105,21 @@ export function useDrag(
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragStateRef.current.isDragging) return;
 
-      const newX = e.clientX - dragStateRef.current.offsetX;
-      const newY = e.clientY - dragStateRef.current.offsetY;
+      let newX = e.clientX - dragStateRef.current.offsetX;
+      let newY = e.clientY - dragStateRef.current.offsetY;
 
-      // 边界检查
+      // 边界检查 - 包含输入框等额外高度
+      // 使用 window.innerWidth/innerHeight，因为窗口已覆盖所有屏幕
+      const totalHeight = height + extraHeight;
       const maxX = window.innerWidth - width;
-      const maxY = window.innerHeight - height;
+      const maxY = window.innerHeight - totalHeight;
 
-      const boundedX = Math.max(0, Math.min(newX, maxX));
-      const boundedY = Math.max(0, Math.min(newY, maxY));
+      newX = Math.max(0, Math.min(newX, maxX));
+      newY = Math.max(0, Math.min(newY, maxY));
 
       // 直接操作 DOM，避免 re-render
-      container.style.left = `${boundedX}px`;
-      container.style.top = `${boundedY}px`;
+      container.style.left = `${newX}px`;
+      container.style.top = `${newY}px`;
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -159,7 +164,7 @@ export function useDrag(
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [containerRef, width, height, excludeSelector, enableMousePassthrough]);
+  }, [containerRef, width, height, excludeSelector, enableMousePassthrough, extraHeight]);
 
   return {
     isDragging,

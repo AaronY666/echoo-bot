@@ -54,7 +54,24 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     height: 400,
     excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .dialog-bubble",
     enableMousePassthrough: true,
+    extraHeight: showInput ? 100 : 0, // 输入框显示时增加额外高度
   });
+
+  // 设置初始位置（主屏幕右下角）
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // 使用 screen.width/height 获取主屏幕尺寸
+    const mainScreenWidth = window.screen.width;
+    const mainScreenHeight = window.screen.height;
+    
+    // 计算主屏幕右下角位置
+    const initialLeft = mainScreenWidth - 300 - 100; // 宽度 - 桌宠宽度 - 右边距
+    const initialTop = mainScreenHeight - 400 - 140; // 高度 - 桌宠高度 - 下边距
+    
+    containerRef.current.style.left = `${initialLeft}px`;
+    containerRef.current.style.top = `${initialTop}px`;
+  }, []); // 只在组件挂载时执行一次
 
   // 监听拖拽状态，控制 Live2D 交互
   useEffect(() => {
