@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Markdown from "markdown-to-jsx";
 import "./index.scss";
 
 export interface DialogBubbleProps {
@@ -127,6 +128,19 @@ export function DialogBubble({
     };
   }, []);
 
+  //--------------  Markdown 配置  --------------
+  /** Markdown渲染选项 */
+  const markdownOptions = {
+    overrides: {
+      a: {
+        props: {
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+      },
+    },
+  };
+
   //--------------  事件处理  --------------
   /** 翻到下一页或关闭气泡 */
   function handleNextPage(e: React.MouseEvent): void {
@@ -203,7 +217,11 @@ export function DialogBubble({
         </div>
       ) : (
         <>
-          <div className="bubble-text">{pages[currentPage] || content}</div>
+          <div className="bubble-text">
+            <Markdown options={markdownOptions}>
+              {pages[currentPage] || content || ""}
+            </Markdown>
+          </div>
 
           {/* 页码指示器（多页时显示） */}
           {pages.length > 1 && (

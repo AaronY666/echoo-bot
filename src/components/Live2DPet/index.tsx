@@ -241,7 +241,7 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
       {/* AI 响应气泡 - 游戏风格分页 */}
       <DialogBubble
         content={aiResponse}
-        isVisible={!!(aiResponse || isThinking)}
+        isVisible={!!(aiResponse || isThinking) && !showHistory}
         isThinking={isThinking}
         onHide={handleBubbleHide}
         charsPerPage={100}
