@@ -7,8 +7,8 @@ import { Live2DModel } from "pixi-live2d-display";
 
 /** Live2D 管理器配置 */
 export interface Live2DManagerConfig {
-  /** Canvas 元素 */
-  canvas: HTMLCanvasElement;
+  /** Canvas 容器元素 */
+  container: HTMLElement;
   /** 画布宽度 */
   width?: number;
   /** 画布高度 */
@@ -32,12 +32,13 @@ export class Live2DManager {
   private expressions: string[] = [];
   private isInteractionEnabled: boolean = true;
   private clickTimer: NodeJS.Timeout | null = null; // 点击延时计时器
+  private canvas: HTMLCanvasElement | null = null; // PIXI 创建的 canvas
 
   //--------------  生命周期  --------------
 
   constructor(config: Live2DManagerConfig) {
     this.config = {
-      canvas: config.canvas,
+      container: config.container,
       width: config.width || 300,
       height: config.height || 400,
       scale: config.scale || 0.15,
@@ -48,15 +49,27 @@ export class Live2DManager {
   /** 初始化 */
   async initialize(): Promise<void> {
     try {
-      // 初始化 PIXI 应用
+      // 初始化 PIXI 应用（不传入 view，让 PIXI 自己创建 canvas）
       this.app = new PIXI.Application({
-        view: this.config.canvas,
         transparent: true,
         autoStart: true,
         width: this.config.width,
         height: this.config.height,
         resolution: window.devicePixelRatio || 1,
       });
+
+      // 获取 PIXI 创建的 canvas
+      this.canvas = this.app.view as HTMLCanvasElement;
+      
+      // 设置 canvas 样式
+      this.canvas.className = "live2d-canvas";
+      this.canvas.style.width = "100%";
+      this.canvas.style.height = "100%";
+      this.canvas.style.display = "block";
+      this.canvas.style.cursor = "pointer";
+      
+      // 将 canvas 插入到容器中
+      this.config.container.appendChild(this.canvas);
 
       // 注册 Ticker
       Live2DModel.registerTicker(PIXI.Ticker);
@@ -88,12 +101,18 @@ export class Live2DManager {
       this.clickTimer = null;
     }
 
+    // 从容器中移除 canvas
+    if (this.canvas && this.canvas.parentNode) {
+      this.canvas.parentNode.removeChild(this.canvas);
+    }
+
     // 销毁 PIXI 应用
     if (this.app) {
-      this.app.destroy(true);
+      this.app.destroy(true, { children: true, texture: true, baseTexture: true });
       this.app = null;
     }
 
+    this.canvas = null;
     this.model = null;
     console.log("🧹 Live2DManager 已销毁");
   }

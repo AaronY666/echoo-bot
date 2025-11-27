@@ -22,7 +22,7 @@ export interface Live2DPetHandle {
  */
 const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // 控制按钮显示状态
   const [showControls, setShowControls] = React.useState<boolean>(false);
@@ -42,7 +42,7 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     currentExpression,
     isSpeaking,
     reinitialize,
-  } = useLive2D(canvasRef, {
+  } = useLive2D(canvasContainerRef, {
     width: 300,
     height: 400,
     scale: 0.15,
@@ -171,8 +171,8 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
-      {/* Live2D画布 */}
-      <canvas ref={canvasRef} className="live2d-canvas" />
+      {/* Live2D画布容器 - PIXI 会在这里插入 canvas */}
+      <div ref={canvasContainerRef} className="live2d-canvas-container" />
 
       {/* 控制按钮 - 仅在鼠标悬停时显示 */}
       {showControls && (

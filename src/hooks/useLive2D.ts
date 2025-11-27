@@ -27,8 +27,8 @@ interface UseLive2DResult {
  * Live2D Hook - 管理 Live2D 模型的加载和生命周期
  */
 export function useLive2D(
-  canvasRef: React.RefObject<HTMLCanvasElement>,
-  config?: Omit<Live2DManagerConfig, "canvas">
+  containerRef: React.RefObject<HTMLElement>,
+  config?: Omit<Live2DManagerConfig, "container">
 ): UseLive2DResult {
   const managerRef = useRef<Live2DManager | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -43,13 +43,13 @@ export function useLive2D(
       setIsLoading(true);
       setError(null);
 
-      if (!canvasRef.current) {
-        throw new Error("Canvas element not found");
+      if (!containerRef.current) {
+        throw new Error("Container element not found");
       }
 
       // 创建 Live2D 管理器
       const manager = new Live2DManager({
-        canvas: canvasRef.current,
+        container: containerRef.current,
         ...config,
       });
 
@@ -92,7 +92,7 @@ export function useLive2D(
 
   // 定期同步状态（从 manager 读取当前状态）
   useEffect(() => {
-    if (!managerRef.current) return;
+    if (!managerRef.current || isLoading) return;
 
     const syncState = () => {
       if (managerRef.current) {
@@ -111,7 +111,7 @@ export function useLive2D(
     return () => {
       clearInterval(interval);
     };
-  }, [managerRef.current, isLoading]); // manager 变化或加载完成时重新设置
+  }, [isLoading]); // 只在加载状态变化时重新设置
 
   return {
     isLoading,
