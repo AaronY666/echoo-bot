@@ -22,8 +22,9 @@ export class PythonProcessManager {
   private pythonPath: string;
   private args: string[];
   private cwd: string;
-  private messageHandlers: Map<string, (data: any) => void> = new Map();
+  private messageHandlers: Map<string, Set<(data: any) => void>> = new Map();
   private outputBuffer: string = ""; // 用于缓冲不完整的行
+  private isReady: boolean = false; // Agent是否已就绪
 
   constructor(options: PythonProcessOptions) {
     this.scriptPath = options.scriptPath;
@@ -124,6 +125,7 @@ export class PythonProcessManager {
       console.log("⏹️ 停止 Python 进程");
       this.process.kill();
       this.outputBuffer = ""; // 清空缓冲区
+      this.isReady = false; // 重置就绪状态
       this.process = null;
     }
   }
@@ -151,8 +153,24 @@ export class PythonProcessManager {
    * 注册消息处理器,用于接收Python进程返回的消息
    */
   onMessage(type: string, handler: (data: any) => void): void {
-    this.messageHandlers.set(type, handler);
+    if (!this.messageHandlers.has(type)) {
+      this.messageHandlers.set(type, new Set());
+    }
+    this.messageHandlers.get(type)!.add(handler);
     console.log(`📝 已注册 Python 消息处理器: ${type}`);
+  }
+
+  /**
+   * 移除消息处理器
+   */
+  removeListener(type: string, handler: (data: any) => void): void {
+    const handlers = this.messageHandlers.get(type);
+    if (handlers) {
+      handlers.delete(handler);
+      if (handlers.size === 0) {
+        this.messageHandlers.delete(type);
+      }
+    }
   }
 
   /**
@@ -165,18 +183,88 @@ export class PythonProcessManager {
   }
 
   /**
+   * 获取聊天历史记录
+   */
+  async getChatHistory(): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      // 设置超时
+      const timeout = setTimeout(() => {
+        this.removeListener("chat_history", handler);
+        reject(new Error("获取历史记录超时"));
+      }, 5000);
+
+      // 创建一次性处理器
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("chat_history", handler);
+        resolve(data.data || []);
+      };
+
+      // 注册处理器
+      this.onMessage("chat_history", handler);
+
+      // 发送请求
+      const payload = JSON.stringify({ type: "get_history" });
+      console.log(`📜 请求历史记录`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * 检查Agent是否已就绪
+   */
+  isAgentReady(): boolean {
+    return this.isReady;
+  }
+
+  /**
+   * 等待Agent就绪
+   */
+  waitForReady(timeout: number = 10000): Promise<void> {
+    if (this.isReady) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error("等待Agent就绪超时"));
+      }, timeout);
+
+      // 监听ready消息
+      const handler = () => {
+        clearTimeout(timer);
+        this.removeListener("ready", handler);
+        resolve();
+      };
+      this.onMessage("ready", handler);
+    });
+  }
+
+  /**
    * 处理 Python 进程返回的消息
    */
   private handleMessage(message: any): void {
-    // 先尝试调用注册的处理器
-    const handler = this.messageHandlers.get(message.type);
-    if (handler) {
-      try {
-        handler(message);
-        return;
-      } catch (err) {
-        console.error(`❌ 消息处理器错误 [${message.type}]:`, err);
-      }
+    // 检查是否是ready消息
+    if (message.type === "ready") {
+      this.isReady = true;
+      console.log("✅ Python Agent 已就绪");
+    }
+
+    // 调用所有注册的处理器
+    const handlers = this.messageHandlers.get(message.type);
+    if (handlers && handlers.size > 0) {
+      handlers.forEach((handler) => {
+        try {
+          handler(message);
+        } catch (err) {
+          console.error(`❌ 消息处理器错误 [${message.type}]:`, err);
+        }
+      });
     }
   }
 }

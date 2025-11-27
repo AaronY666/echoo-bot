@@ -8,6 +8,8 @@ import { useDrag } from "@hooks/useDrag";
 import { useLive2D } from "@hooks/useLive2D";
 import { ipcEvent } from "@services/ipcEvent";
 import { DialogBubble } from "@components/DialogBubble";
+import { ChatInput } from "@components/ChatInput";
+import { HistoryPanel } from "@components/HistoryPanel";
 import "./index.scss";
 
 /** Live2D宠物组件暴露的方法 */
@@ -29,6 +31,7 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   
   //--------------  聊天输入相关状态  --------------
   const [showInput, setShowInput] = React.useState<boolean>(false);
+  const [showHistory, setShowHistory] = React.useState<boolean>(false);
   const [userMessage, setUserMessage] = React.useState<string>("");
   const [aiResponse, setAiResponse] = React.useState<string>("");
   const [isThinking, setIsThinking] = React.useState<boolean>(false);
@@ -48,11 +51,11 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     scale: 0.15,
   });
 
-  // 使用拖拽 Hook（排除控制按钮、输入框和对话气泡）
+  // 使用拖拽 Hook（排除控制按钮、输入框、历史面板和对话气泡）
   const { isDragging } = useDrag(containerRef, {
     width: 300,
     height: 400,
-    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .dialog-bubble",
+    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .history-btn, .history-panel, .dialog-bubble",
     enableMousePassthrough: true,
     extraHeight: showInput ? 100 : 0, // 输入框显示时增加额外高度
   });
@@ -115,6 +118,12 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   /** 切换输入框显示 */
   const toggleInput = (): void => {
     setShowInput(!showInput);
+    setShowHistory(false); // 打开输入框时关闭历史面板
+  };
+
+  /** 切换历史记录显示 */
+  const handleToggleHistory = (): void => {
+    setShowHistory(!showHistory);
   };
 
   /** 发送消息给主进程 */
@@ -129,14 +138,6 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     setUserMessage("");
     setIsThinking(true);
     setAiResponse(""); // 清空上次响应
-  };
-
-  /** 处理回车发送 */
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
   };
 
   //--------------  气泡隐藏处理  --------------
@@ -246,34 +247,22 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
         charsPerPage={100}
       />
 
-      {/* 聊天输入框 - 在桌宠下方悬浮 */}
+      {/* 历史记录面板 - 在左侧 */}
+      {showInput && showHistory && (
+        <HistoryPanel isVisible={showHistory} />
+      )}
+
+      {/* 聊天输入框 - 始终在底部 */}
       {showInput && (
-        <div className="chat-input-container">
-          <textarea
-            className="chat-input"
-            value={userMessage}
-            onChange={(e) => setUserMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="和我聊天吧... (Enter发送, Shift+Enter换行)"
-            rows={2}
-          />
-          <div className="button-group">
-            <button
-              className="close-input-btn"
-              onClick={toggleInput}
-              title="关闭输入框"
-            >
-              关闭
-            </button>
-            <button
-              className="send-btn"
-              onClick={handleSendMessage}
-              disabled={!userMessage.trim() || isThinking}
-            >
-              {isThinking ? "⏳" : "发送"}
-            </button>
-          </div>
-        </div>
+        <ChatInput
+          value={userMessage}
+          onChange={setUserMessage}
+          onSend={handleSendMessage}
+          onClose={toggleInput}
+          onToggleHistory={handleToggleHistory}
+          showHistory={showHistory}
+          disabled={isThinking}
+        />
       )}
     </div>
   );

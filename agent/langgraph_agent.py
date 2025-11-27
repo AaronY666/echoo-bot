@@ -198,8 +198,15 @@ class LangGraphAgent:
                         log(f"⚠️ 获取历史状态失败: {str(e)}")
             
             # 构建初始状态：追加新消息到历史消息
+            # 为新消息添加时间戳
+            from datetime import datetime
+            new_message = HumanMessage(
+                content=enhanced_input,
+                additional_kwargs={"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+            )
+            
             initial_state: AgentState = {
-                "messages": existing_messages + [HumanMessage(content=enhanced_input)],
+                "messages": existing_messages + [new_message],
                 "workflow_type": "chat",  # 默认值，会被 router 覆盖
                 "quick_reply": None,
                 "quick_reply_audio": None,
@@ -445,6 +452,72 @@ class LangGraphAgent:
                     log(f"🗑️ 清理旧 checkpoint: {len(all_checkpoints)} -> {keep_count}")
         except Exception as e:
             log(f"⚠️ 清理 checkpoint 失败: {str(e)}")
+    
+    def get_chat_history(self, limit: int = 20) -> list:
+        """
+        获取历史对话记录
+        
+        Args:
+            limit: 返回的最大消息数量
+            
+        Returns:
+            格式化的历史记录列表
+            [
+                {"role": "user", "content": "...", "timestamp": "..."},
+                {"role": "assistant", "content": "...", "timestamp": "..."},
+            ]
+        """
+        if not self.checkpointer:
+            log("⚠️ 短期记忆未启用，无法获取历史记录")
+            return []
+        
+        try:
+            config = {"configurable": {"thread_id": self.user_id}}
+            
+            # 获取当前状态
+            current_state = self.graph.get_state(config)
+            if not current_state or not current_state.values:
+                log("ℹ️ 暂无历史记录")
+                return []
+            
+            messages = current_state.values.get("messages", [])
+            
+            if not messages:
+                return []
+            
+            # 格式化消息
+            formatted_messages = []
+            for msg in messages:
+                # 确定角色
+                role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                
+                # 提取内容
+                content = msg.content
+                
+                # 提取时间戳（如果有）
+                timestamp = ""
+                if hasattr(msg, 'additional_kwargs'):
+                    timestamp = msg.additional_kwargs.get('timestamp', '')
+                
+                # 如果没有时间戳，使用当前时间（这是一个备选方案）
+                if not timestamp:
+                    from datetime import datetime
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                formatted_messages.append({
+                    "role": role,
+                    "content": content,
+                    "timestamp": timestamp
+                })
+            
+            # 只返回最近的 limit 条消息
+            return formatted_messages[-limit:] if len(formatted_messages) > limit else formatted_messages
+            
+        except Exception as e:
+            log(f"❌ 获取历史记录失败: {str(e)}")
+            import traceback
+            log(traceback.format_exc())
+            return []
     
     def cleanup(self):
         """清理资源，关闭数据库连接"""

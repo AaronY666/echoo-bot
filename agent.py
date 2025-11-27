@@ -42,8 +42,19 @@ def main():
                 # 解析 JSON 消息
                 message = json.loads(line)
                 
-                # 使用 LangGraph Agent 处理消息
-                response = agent.process(message)
+                # 检查消息类型
+                message_type = message.get("type", "chat")
+                
+                # 处理获取历史记录的请求
+                if message_type == "get_history":
+                    history = agent.get_chat_history(limit=20)
+                    response = {
+                        "type": "chat_history",
+                        "data": history
+                    }
+                else:
+                    # 使用 LangGraph Agent 处理消息
+                    response = agent.process(message)
                 
                 # 输出响应到 stdout（JSON 格式）
                 print(json.dumps(response, ensure_ascii=False))

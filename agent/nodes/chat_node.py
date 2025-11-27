@@ -81,6 +81,11 @@ def chat_node(state: AgentState) -> AgentState:
         ai_message = result["messages"][-1]
         response_text = ai_message.content
         
+        # 为AI消息添加时间戳
+        from datetime import datetime
+        if not ai_message.additional_kwargs.get("timestamp"):
+            ai_message.additional_kwargs["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
         log(f"✅ 聊天节点完成")
         
         # 更新状态：将 AI 的响应添加到消息列表

@@ -53,6 +53,30 @@ class WindowManager {
       }
     });
 
+    // 获取聊天历史记录
+    ipcMain.handle("get-chat-history", async () => {
+      console.log(`📜 收到获取历史记录请求`);
+      if (this.pythonManager) {
+        try {
+          // 等待Agent就绪（最多10秒）
+          if (!this.pythonManager.isAgentReady()) {
+            console.log("⏳ 等待 Python Agent 初始化完成...");
+            await this.pythonManager.waitForReady(10000);
+          }
+          
+          const history = await this.pythonManager.getChatHistory();
+          console.log(`✅ 成功获取 ${history.length} 条历史记录`);
+          return history;
+        } catch (err) {
+          console.error("❌ 获取历史记录失败:", err);
+          return [];
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动，无法获取历史记录");
+        return [];
+      }
+    });
+
     console.log("✅ WindowManager IPC 监听器已设置");
   }
 
@@ -84,6 +108,7 @@ class WindowManager {
     ipcMain.removeAllListeners("close-window");
     ipcMain.removeAllListeners("set-ignore-mouse-events");
     ipcMain.removeAllListeners("send-chat-message");
+    ipcMain.removeHandler("get-chat-history");
     console.log("🧹 WindowManager 监听器已清理");
   }
 }
