@@ -1,0 +1,22 @@
+# LangGraph 和 LangChain 核心
+langgraph>=0.2.0
+langgraph-checkpoint-sqlite>=1.0.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+langchain-huggingface>=0.3.0
+
+# 向量数据库
+langchain-chroma>=0.2.0
+chromadb>=1.0.20
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# 其他依赖
+requests>=2.31.0
+
+# 本地 Embedding 模型（用于离线场景或替代 OpenAI）
+sentence-transformers>=2.2.0
+torch>=2.0.0
+

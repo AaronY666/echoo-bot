@@ -28,3 +28,6 @@ build/
 *.log
 workflow_graph.md
 plans/
+
+# db
+data/

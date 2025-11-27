@@ -42,14 +42,11 @@ def _init_chat_agent():
         temperature=0.2,
     )
     
-    # 初始化 Memory（用于记录上下文）
-    _memory = MemorySaver()
+    # 注意：不在这里添加 Memory，因为 LangGraphAgent 已经统一管理了 Checkpointing
+    # 这样可以避免冲突，并且让记忆管理更加统一
     
-    # 初始化 Agent（暂时不添加 tools，后续可扩展）
-    _agent = create_react_agent(_llm, [], checkpointer=_memory)
-    
-    # 配置会话
-    _config = {"configurable": {"thread_id": "default_conversation"}}
+    # 初始化 Agent（不添加 checkpointer，让外层统一管理）
+    _agent = create_react_agent(_llm, [], checkpointer=None)
     
     log("✅ 聊天 Agent 初始化完成")
     return _agent
@@ -75,9 +72,9 @@ def chat_node(state: AgentState) -> AgentState:
         agent = _init_chat_agent()
         
         # 调用 Agent 获取响应
+        # 传递所有历史消息以保持上下文
         result = agent.invoke(
-            {"messages": [("user", user_input)]}, 
-            _config
+            {"messages": messages}
         )
         
         # 提取最后一条 AI 消息
@@ -86,9 +83,12 @@ def chat_node(state: AgentState) -> AgentState:
         
         log(f"✅ 聊天节点完成")
         
-        # 更新状态
+        # 更新状态：将 AI 的响应添加到消息列表
+        updated_messages = messages + [ai_message]
+        
         return {
             **state,
+            "messages": updated_messages,
             "detailed_content": response_text,
             "error": None
         }
