@@ -130,6 +130,12 @@
         align-items: center;
         color: white;
         z-index: 20;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .loading-overlay.switching {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(2px);
     }
 
     .loading-spinner {
@@ -220,6 +226,15 @@
 
     100% {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
     }
 }
 

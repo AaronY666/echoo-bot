@@ -10,6 +10,7 @@ import { ipcEvent } from "@services/ipcEvent";
 import { DialogBubble } from "@components/DialogBubble";
 import { ChatInput } from "@components/ChatInput";
 import { HistoryPanel } from "@components/HistoryPanel";
+import { ModelSwitcher } from "@components/ModelSwitcher";
 import "./index.scss";
 
 /** Live2D宠物组件暴露的方法 */
@@ -35,27 +36,25 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   const [userMessage, setUserMessage] = React.useState<string>("");
   const [aiResponse, setAiResponse] = React.useState<string>("");
   const [isThinking, setIsThinking] = React.useState<boolean>(false);
+  const [currentModelId, setCurrentModelId] = React.useState<string | null>(null);
+  const [isSwitchingModel, setIsSwitchingModel] = React.useState<boolean>(false);
 
   // 使用 Live2D Hook（状态由 Hook 管理）
   const {
     isLoading,
     error,
     manager,
-    currentMotion,
-    currentExpression,
-    isSpeaking,
     reinitialize,
   } = useLive2D(canvasContainerRef, {
     width: 300,
     height: 400,
-    scale: 0.15,
   });
 
-  // 使用拖拽 Hook（排除控制按钮、输入框、历史面板和对话气泡）
+  // 使用拖拽 Hook（排除控制按钮、输入框、历史面板、对话气泡和模型切换器）
   const { isDragging } = useDrag(containerRef, {
     width: 300,
     height: 400,
-    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .history-btn, .history-panel, .dialog-bubble",
+    excludeSelector: ".control-btn, .chat-input-container, .chat-input, .send-btn, .close-input-btn, .history-btn, .history-panel, .dialog-bubble, .model-switcher",
     enableMousePassthrough: true,
     extraHeight: showInput ? 100 : 0, // 输入框显示时增加额外高度
   });
@@ -147,6 +146,34 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     setIsThinking(false);
   };
 
+  //--------------  模型切换处理  --------------
+  /** 切换模型 */
+  const handleSwitchModel = async (modelId: string): Promise<void> => {
+    if (!manager) return;
+    
+    setIsSwitchingModel(true);
+    
+    try {
+      await manager.switchModelById(modelId);
+      setCurrentModelId(modelId);
+      console.log(`✅ 已切换到模型: ${modelId}`);
+    } catch (err) {
+      console.error("❌ 模型切换失败:", err);
+    } finally {
+      setIsSwitchingModel(false);
+    }
+  };
+
+  //--------------  同步当前模型ID  --------------
+  useEffect(() => {
+    if (manager && !currentModelId) {
+      const modelId = manager.getCurrentModelId();
+      if (modelId) {
+        setCurrentModelId(modelId);
+      }
+    }
+  }, [manager, currentModelId]);
+
   //--------------  监听 Python 响应  --------------
   useEffect(() => {
     const unsubscribe = ipcEvent.on("chat-response", (data: any) => {
@@ -202,21 +229,27 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
         </div>
       )}
 
-      {/* 状态指示器 */}
-      <div className="status-indicator">
-        <div
-          className={`status-dot ${
-            isSpeaking ? "speaking" : currentExpression
-          }`}
-          title={isSpeaking ? "说话中" : `状态: ${currentExpression}`}
+      {/* 模型切换器 */}
+      {!isLoading && !error && (
+        <ModelSwitcher
+          currentModelId={currentModelId}
+          onSwitch={handleSwitchModel}
         />
-      </div>
+      )}
 
       {/* 加载状态 */}
       {isLoading && (
         <div className="loading-overlay">
           <div className="loading-spinner"></div>
           <div className="loading-text">加载桌宠中...</div>
+        </div>
+      )}
+
+      {/* 模型切换加载状态 */}
+      {isSwitchingModel && !isLoading && (
+        <div className="loading-overlay switching">
+          <div className="loading-spinner"></div>
+          <div className="loading-text">切换模型中...</div>
         </div>
       )}
 
@@ -230,13 +263,6 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
           </button>
         </div>
       )}
-
-      {/* 调试信息 */}
-      <div className="debug-info">
-        {currentMotion && <div>动作: {currentMotion}</div>}
-        {currentExpression && <div>表情: {currentExpression}</div>}
-        {isSpeaking && <div>🗣️ 说话中</div>}
-      </div>
 
       {/* AI 响应气泡 - 游戏风格分页 */}
       <DialogBubble

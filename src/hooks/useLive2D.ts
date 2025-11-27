@@ -5,6 +5,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Live2DManager, Live2DManagerConfig } from "@services/live2dManager";
+// 导入 presets 确保模型在使用前已注册
+import "@models/presets";
 
 interface UseLive2DResult {
   /** 是否正在加载 */
@@ -13,12 +15,6 @@ interface UseLive2DResult {
   error: string | null;
   /** Live2D 管理器实例 */
   manager: Live2DManager | null;
-  /** 当前动作 */
-  currentMotion: string;
-  /** 当前表情 */
-  currentExpression: string;
-  /** 是否正在说话 */
-  isSpeaking: boolean;
   /** 重新初始化 */
   reinitialize: () => Promise<void>;
 }
@@ -33,9 +29,6 @@ export function useLive2D(
   const managerRef = useRef<Live2DManager | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentMotion, setCurrentMotion] = useState<string>("");
-  const [currentExpression, setCurrentExpression] = useState<string>("");
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
   /** 初始化 Live2D */
   const initialize = async (): Promise<void> => {
@@ -90,36 +83,10 @@ export function useLive2D(
     };
   }, []); // 只在挂载时执行一次
 
-  // 定期同步状态（从 manager 读取当前状态）
-  useEffect(() => {
-    if (!managerRef.current || isLoading) return;
-
-    const syncState = () => {
-      if (managerRef.current) {
-        setCurrentMotion(managerRef.current.getCurrentMotion());
-        setCurrentExpression(managerRef.current.getCurrentExpression());
-        setIsSpeaking(managerRef.current.getIsSpeaking());
-      }
-    };
-
-    // 初始同步
-    syncState();
-
-    // 每 100ms 同步一次状态
-    const interval = setInterval(syncState, 100);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [isLoading]); // 只在加载状态变化时重新设置
-
   return {
     isLoading,
     error,
     manager: managerRef.current,
-    currentMotion,
-    currentExpression,
-    isSpeaking,
     reinitialize,
   };
 }

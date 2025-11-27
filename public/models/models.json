@@ -1,0 +1,13 @@
+{
+  "models": [
+    {
+      "id": "custom-model-example",
+      "name": "Custom Model Example",
+      "description": "自定义模型示例 - 修改此文件添加更多模型",
+      "url": "https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model/Live2D/Pio/model.json",
+      "version": 2,
+      "scale": 0.15
+    }
+  ]
+}
+

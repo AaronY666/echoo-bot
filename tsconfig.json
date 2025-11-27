@@ -19,7 +19,8 @@
     "paths": {
       "@services/*": ["./src/services/*"],
       "@components/*": ["./src/components/*"],
-      "@hooks/*": ["./src/hooks/*"]
+      "@hooks/*": ["./src/hooks/*"],
+      "@models/*": ["./src/models/*"]
     },
 
     /* Linting */

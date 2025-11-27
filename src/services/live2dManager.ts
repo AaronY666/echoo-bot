@@ -4,6 +4,8 @@
 
 import * as PIXI from "pixi.js";
 import { Live2DModel } from "pixi-live2d-display";
+import { Live2DModelDefinition } from "@models/Live2DModelDefinition";
+import { ModelRegistry } from "@models/ModelRegistry";
 
 /** Live2D 管理器配置 */
 export interface Live2DManagerConfig {
@@ -15,15 +17,26 @@ export interface Live2DManagerConfig {
   height?: number;
   /** 模型缩放比例 */
   scale?: number;
-  /** 模型 URL 列表 */
-  modelUrls?: string[];
+  /** 模型定义对象（优先级最高） */
+  model?: Live2DModelDefinition;
+  /** 模型ID（从注册表加载） */
+  modelId?: string;
+}
+
+/** 模型缓存项 */
+interface CachedModel {
+  model: Live2DModel;
+  definition: Live2DModelDefinition;
+  motions: string[];
+  expressions: string[];
 }
 
 /** Live2D 管理器 */
 export class Live2DManager {
   private app: PIXI.Application | null = null;
   private model: Live2DModel | null = null;
-  private config: Required<Live2DManagerConfig>;
+  private config: Required<Omit<Live2DManagerConfig, "model" | "modelId">>;
+  private currentModelDefinition: Live2DModelDefinition | null = null;
   private idleAnimationTimer: NodeJS.Timeout | null = null;
   private currentMotion: string = "";
   private currentExpression: string = "";
@@ -31,8 +44,12 @@ export class Live2DManager {
   private motions: string[] = [];
   private expressions: string[] = [];
   private isInteractionEnabled: boolean = true;
-  private clickTimer: NodeJS.Timeout | null = null; // 点击延时计时器
-  private canvas: HTMLCanvasElement | null = null; // PIXI 创建的 canvas
+  private clickTimer: NodeJS.Timeout | null = null;
+  private canvas: HTMLCanvasElement | null = null;
+  
+  // 模型缓存
+  private modelCache: Map<string, CachedModel> = new Map();
+  private maxCacheSize: number = 5; // 最多缓存5个模型
 
   //--------------  生命周期  --------------
 
@@ -42,8 +59,10 @@ export class Live2DManager {
       width: config.width || 300,
       height: config.height || 400,
       scale: config.scale || 0.15,
-      modelUrls: config.modelUrls || this.getDefaultModelUrls(),
     };
+    
+    // 解析模型配置
+    this.currentModelDefinition = this.resolveModelDefinition(config);
   }
 
   /** 初始化 */
@@ -101,6 +120,9 @@ export class Live2DManager {
       this.clickTimer = null;
     }
 
+    // 清理缓存中的所有模型
+    this.clearModelCache();
+
     // 从容器中移除 canvas
     if (this.canvas && this.canvas.parentNode) {
       this.canvas.parentNode.removeChild(this.canvas);
@@ -117,39 +139,111 @@ export class Live2DManager {
     console.log("🧹 Live2DManager 已销毁");
   }
 
-  //--------------  模型加载  --------------
+  //--------------  模型配置解析  --------------
 
-  /** 获取默认模型 URL 列表 */
-  private getDefaultModelUrls(): string[] {
-    return [
-      // Cubism 4 模型
-      "https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model/Live2D/Senko_Normals/senko.model3.json",
-      "https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model/Live2D/Hiyori/Hiyori.model3.json",
-
-      // Cubism 2 模型（更稳定）
-      "https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json",
-      "https://unpkg.com/live2d-widget-model-tororo@1.0.5/assets/tororo.model.json",
-    ];
+  /** 解析模型定义 */
+  private resolveModelDefinition(config: Live2DManagerConfig): Live2DModelDefinition | null {
+    // 优先使用 model 配置
+    if (config.model) {
+      return config.model;
+    }
+    
+    // 其次使用 modelId（从注册表查找）
+    if (config.modelId) {
+      const model = ModelRegistry.get(config.modelId);
+      if (!model) {
+        console.warn(`⚠️ 模型 "${config.modelId}" 未在注册表中找到`);
+        return null;
+      }
+      return model;
+    }
+    
+    // 如果都没有，使用注册表中的第一个模型
+    const allModels = ModelRegistry.getAll();
+    if (allModels.length > 0) {
+      console.log("使用注册表中的第一个模型:", allModels[0].name);
+      return allModels[0];
+    }
+    
+    return null;
   }
 
-  /** 加载模型 */
-  async loadModel(): Promise<void> {
+  //--------------  模型缓存管理  --------------
+
+  /** 从缓存获取模型 */
+  private getCachedModel(modelId: string): CachedModel | undefined {
+    return this.modelCache.get(modelId);
+  }
+
+  /** 缓存模型 */
+  private cacheModel(modelId: string, model: Live2DModel, definition: Live2DModelDefinition, motions: string[], expressions: string[]): void {
+    // 如果缓存已满，移除最早的一个
+    if (this.modelCache.size >= this.maxCacheSize) {
+      const firstKey = this.modelCache.keys().next().value;
+      if (firstKey) {
+        const cached = this.modelCache.get(firstKey);
+        if (cached) {
+          console.log(`🗑️ 清理缓存模型: ${firstKey}`);
+          // 注意：不销毁模型，只是从缓存移除
+          // 如果模型在舞台上，由切换逻辑处理
+        }
+        this.modelCache.delete(firstKey);
+      }
+    }
+
+    this.modelCache.set(modelId, {
+      model,
+      definition,
+      motions,
+      expressions,
+    });
+    console.log(`💾 缓存模型: ${modelId} (缓存数: ${this.modelCache.size}/${this.maxCacheSize})`);
+  }
+
+  /** 清空模型缓存 */
+  private clearModelCache(): void {
+    for (const cached of this.modelCache.values()) {
+      // 销毁缓存的模型（如果不在当前使用）
+      if (cached.model !== this.model) {
+        cached.model.destroy();
+      }
+    }
+    this.modelCache.clear();
+    console.log("🗑️ 已清空模型缓存");
+  }
+
+  //--------------  模型加载  --------------
+
+  /** 加载模型（支持缓存） */
+  async loadModel(modelDef?: Live2DModelDefinition): Promise<void> {
     if (!this.app) {
       throw new Error("PIXI Application 未初始化");
     }
 
-    let lastError: Error | null = null;
-    const modelUrls = this.config.modelUrls;
+    // 使用参数中的模型定义，或者使用当前配置的模型
+    const modelDefinition = modelDef || this.currentModelDefinition;
+    
+    if (!modelDefinition) {
+      throw new Error("没有可用的模型定义。请先注册模型到 ModelRegistry。");
+    }
 
-    // 尝试加载每个模型 URL，直到成功
-    for (let i = 0; i < modelUrls.length; i++) {
-      const modelUrl = modelUrls[i];
-      try {
-        console.log(
-          `🔄 尝试加载模型 (${i + 1}/${modelUrls.length}): ${modelUrl}`
-        );
+    try {
+      let model: Live2DModel;
+      let motions: string[];
+      let expressions: string[];
 
-        const model = await Live2DModel.from(modelUrl);
+      // 🔥 检查缓存
+      const cached = this.getCachedModel(modelDefinition.id);
+      
+      if (cached) {
+        console.log(`⚡ 从缓存加载模型: ${modelDefinition.name}`);
+        model = cached.model;
+        motions = cached.motions;
+        expressions = cached.expressions;
+      } else {
+        console.log(`🔄 首次加载模型: ${modelDefinition.name}`);
+        const modelUrl = modelDefinition.getFullUrl();
+        model = await Live2DModel.from(modelUrl);
 
         // 检查是否已销毁
         if (!this.app) {
@@ -157,38 +251,166 @@ export class Live2DManager {
           return;
         }
 
-        this.model = model;
-
+        // 获取模型的动作和表情列表
+        motions = [];
+        expressions = [];
+        
         // 配置模型 - 居中显示
         model.anchor.set(0.5, 0.5);
-        model.scale.set(this.config.scale);
-        model.x = this.app.screen.width / 2;
-        model.y = this.app.screen.height / 2;
-
-        this.app.stage.addChild(model);
+        
+        // 自动计算缩放比例（contain 模式）
+        const scale = this.calculateOptimalScale(model, modelDefinition);
+        model.scale.set(scale);
+        
+        // 计算位置（考虑偏移）
+        const baseX = this.app.screen.width / 2;
+        const baseY = this.app.screen.height / 2;
+        const offsetX = modelDefinition.offset?.x || 0;
+        const offsetY = modelDefinition.offset?.y || 0;
+        
+        model.x = baseX + offsetX;
+        model.y = baseY + offsetY;
 
         // 设置交互
         this.setupInteractions(model);
 
-        console.log(`✅ 模型加载成功: ${modelUrl}`);
-
-        // 输出模型信息
-        this.logModelInfo();
-
-        return;
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error("Unknown error");
-        console.warn(`❌ 模型加载失败: ${modelUrl}`, err);
+        // 🔥 缓存新加载的模型
+        // 先将模型添加到场景，这样可以正确读取动作和表情
+        this.app.stage.addChild(model);
+        
+        // 临时设置为当前模型以读取信息
+        const prevModel = this.model;
+        this.model = model;
+        motions = this.getAvailableMotionsFromModel(model);
+        expressions = this.getAvailableExpressionsFromModel(model);
+        this.model = prevModel;
+        
+        // 从场景移除（稍后会重新添加）
+        this.app.stage.removeChild(model);
+        
+        this.cacheModel(modelDefinition.id, model, modelDefinition, motions, expressions);
       }
+
+      // 🔥 切换到新模型
+      // 如果已有模型在显示，先移除（但不销毁，因为已缓存）
+      if (this.model) {
+        this.app.stage.removeChild(this.model);
+      }
+
+      this.model = model;
+      this.currentModelDefinition = modelDefinition;
+      this.motions = motions;
+      this.expressions = expressions;
+
+      // 将模型添加到场景
+      if (!this.app.stage.children.includes(model)) {
+        this.app.stage.addChild(model);
+      }
+
+      console.log(`✅ 模型切换成功: ${modelDefinition.name}`);
+      console.log(`📋 可用动作 (${motions.length}):`, motions.slice(0, 5), motions.length > 5 ? '...' : '');
+      console.log(`📋 可用表情 (${expressions.length}):`, expressions);
+
+      // 重新启动空闲动画
+      this.startIdleAnimation();
+    } catch (err) {
+      console.error(`❌ 模型加载失败: ${modelDefinition.name}`, err);
+      throw err;
+    }
+  }
+
+  /** 从模型获取动作列表（用于缓存） */
+  private getAvailableMotionsFromModel(model: Live2DModel): string[] {
+    try {
+      const internalModel = (model as any).internalModel;
+      if (internalModel?.motionManager?.definitions) {
+        const definitions = internalModel.motionManager.definitions;
+        
+        const allMotions: string[] = [];
+        for (const groupName in definitions) {
+          if (Array.isArray(definitions[groupName])) {
+            if (groupName === "") {
+              const groupLength = definitions[groupName].length;
+              for (let i = 0; i < groupLength; i++) {
+                allMotions.push(`${groupName}@${i}`);
+              }
+            } else {
+              allMotions.push(groupName);
+            }
+          }
+        }
+        
+        if (allMotions.length === 0) {
+          const motionGroups = Object.keys(definitions);
+          return motionGroups.filter(g => g !== "");
+        }
+        
+        return allMotions;
+      }
+    } catch (err) {
+      console.warn("无法获取动作列表:", err);
+    }
+    return [];
+  }
+
+  /** 从模型获取表情列表（用于缓存） */
+  private getAvailableExpressionsFromModel(model: Live2DModel): string[] {
+    try {
+      const internalModel = (model as any).internalModel;
+      if (internalModel?.coreModel?.expressions) {
+        return Object.keys(internalModel.coreModel.expressions);
+      }
+    } catch (err) {
+      console.warn("无法获取表情列表:", err);
+    }
+    return [];
+  }
+
+  //--------------  缩放计算  --------------
+
+  /** 计算最佳缩放比例（contain 模式）*/
+  private calculateOptimalScale(model: any, modelDefinition: Live2DModelDefinition): number {
+    if (!this.app) return modelDefinition.scale || this.config.scale;
+
+    // 🔥 优先级1：如果模型定义中手动指定了缩放比例，优先使用
+    if (modelDefinition.scale !== undefined) {
+      console.log(`📐 使用手动设置的缩放比例: ${modelDefinition.scale}`);
+      return modelDefinition.scale;
     }
 
-    // 所有模型都加载失败
-    throw new Error(
-      `所有模型加载失败。最后一次错误: ${
-        lastError?.message || "Unknown error"
-      }\n` +
-        `提示: 请将 Live2D 模型文件放到 public/models/ 目录，或检查网络连接。`
-    );
+    // 🔥 优先级2：自动计算最佳缩放比例
+    try {
+      // 获取模型原始尺寸
+      const modelWidth = model.width;
+      const modelHeight = model.height;
+      
+      // 获取容器尺寸
+      const containerWidth = this.app.screen.width;
+      const containerHeight = this.app.screen.height;
+
+      if (!modelWidth || !modelHeight) {
+        console.warn("⚠️ 无法获取模型尺寸，使用配置默认值");
+        return this.config.scale;
+      }
+
+      // 计算宽度和高度的缩放比例（留出边距，避免紧贴边缘）
+      const marginRatio = 0.95; // 留出 5% 边距
+      const scaleX = (containerWidth * marginRatio) / modelWidth;
+      const scaleY = (containerHeight * marginRatio) / modelHeight;
+
+      // 使用较小的缩放比例，确保完整显示（contain）
+      const optimalScale = Math.min(scaleX, scaleY);
+
+      console.log(`📐 自动计算缩放:`);
+      console.log(`   模型尺寸: ${modelWidth.toFixed(0)}x${modelHeight.toFixed(0)}`);
+      console.log(`   容器尺寸: ${containerWidth}x${containerHeight}`);
+      console.log(`   计算比例: ${optimalScale.toFixed(4)}`);
+
+      return optimalScale;
+    } catch (err) {
+      console.warn("⚠️ 计算缩放比例失败，使用配置默认值:", err);
+      return this.config.scale;
+    }
   }
 
   //--------------  交互处理  --------------
@@ -250,42 +472,24 @@ export class Live2DManager {
 
   /** 获取模型支持的动作列表 */
   private getAvailableMotions(): string[] {
+    // 优先使用缓存的动作列表
     if (this.motions.length > 0) return this.motions;
     if (!this.model) return [];
 
-    try {
-      const internalModel = (this.model as any).internalModel;
-      if (internalModel?.motionManager?.definitions) {
-        const motions = Object.keys(internalModel.motionManager.definitions);
-        console.log("📋 可用动作:", motions);
-        this.motions = motions;
-        return motions;
-      }
-    } catch (err) {
-      console.warn("无法获取动作列表:", err);
-    }
-
-    return [];
+    // 如果没有缓存，从模型读取
+    this.motions = this.getAvailableMotionsFromModel(this.model);
+    return this.motions;
   }
 
   /** 获取模型支持的表情列表 */
   private getAvailableExpressions(): string[] {
+    // 优先使用缓存的表情列表
     if (this.expressions.length > 0) return this.expressions;
     if (!this.model) return [];
 
-    try {
-      const internalModel = (this.model as any).internalModel;
-      if (internalModel?.coreModel?.expressions) {
-        const expressions = Object.keys(internalModel.coreModel.expressions);
-        console.log("📋 可用表情:", expressions);
-        this.expressions = expressions;
-        return expressions;
-      }
-    } catch (err) {
-      console.warn("无法获取表情列表:", err);
-    }
-
-    return [];
+    // 如果没有缓存，从模型读取
+    this.expressions = this.getAvailableExpressionsFromModel(this.model);
+    return this.expressions;
   }
 
   /** 启动默认动画 */
@@ -332,16 +536,6 @@ export class Live2DManager {
     // }, 5000);
   }
 
-  /** 输出模型信息 */
-  private logModelInfo(): void {
-    if (!this.model) return;
-
-    console.log("ℹ️ === Live2D 模型信息 ===");
-    this.getAvailableMotions();
-    this.getAvailableExpressions();
-    console.log("ℹ️ ======================");
-  }
-
   /** 播放动作（仅播放动作，不涉及表情） */
   private playMotion(motion: string): void {
     if (!this.model) return;
@@ -355,8 +549,19 @@ export class Live2DManager {
         return;
       }
 
+      // 解析动作参数
+      let group = motion;
+      let index = 0;
+      
+      // 如果动作格式是 "group@index"，解析出来
+      if (motion.includes("@")) {
+        const parts = motion.split("@");
+        group = parts[0];
+        index = parseInt(parts[1]) || 0;
+      }
+
       // 播放动作
-      const motionResult = this.model.motion(motion, 0, 2); // group, index, priority
+      const motionResult = this.model.motion(group, index, 2); // group, index, priority
 
       if (motionResult && typeof motionResult.then === "function") {
         motionResult
@@ -514,5 +719,47 @@ export class Live2DManager {
   /** 获取交互启用状态 */
   isInteractive(): boolean {
     return this.isInteractionEnabled;
+  }
+
+  //--------------  模型切换  --------------
+
+  /** 切换模型（通过模型ID） */
+  async switchModelById(modelId: string): Promise<void> {
+    const modelDef = ModelRegistry.get(modelId);
+    if (!modelDef) {
+      throw new Error(`模型 "${modelId}" 未在注册表中找到`);
+    }
+    await this.switchModel(modelDef);
+  }
+
+  /** 切换模型（通过模型定义） */
+  async switchModel(modelDef: Live2DModelDefinition): Promise<void> {
+    console.log(`🔄 切换模型: ${modelDef.name}`);
+    
+    // 清除当前状态
+    this.isSpeaking = false;
+    this.motions = [];
+    this.expressions = [];
+    this.currentMotion = "";
+    this.currentExpression = "";
+    
+    // 清除空闲动画定时器
+    if (this.idleAnimationTimer) {
+      clearInterval(this.idleAnimationTimer);
+      this.idleAnimationTimer = null;
+    }
+    
+    // 加载新模型
+    await this.loadModel(modelDef);
+  }
+
+  /** 获取当前模型定义 */
+  getCurrentModelDefinition(): Live2DModelDefinition | null {
+    return this.currentModelDefinition;
+  }
+
+  /** 获取当前模型ID */
+  getCurrentModelId(): string | null {
+    return this.currentModelDefinition?.id || null;
   }
 }

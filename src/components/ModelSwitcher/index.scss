@@ -1,0 +1,160 @@
+.model-switcher {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 100;
+  
+  //--------------  切换按钮  --------------
+  .switcher-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    .model-icon {
+      font-size: 16px;
+    }
+
+    .model-name {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .arrow {
+      font-size: 10px;
+      transition: transform 0.2s ease;
+      
+      &.open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  //--------------  模型列表  --------------
+  .model-list {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    min-width: 200px;
+    max-width: 280px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.2s ease;
+
+    //--------------  空状态  --------------
+    .empty-state {
+      padding: 20px;
+      text-align: center;
+      color: #999;
+      font-size: 13px;
+    }
+
+    //--------------  模型项  --------------
+    .model-item {
+      position: relative;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      &.active {
+        background: rgba(99, 102, 241, 0.1);
+        
+        .model-name {
+          color: #6366f1;
+          font-weight: 600;
+        }
+      }
+
+      .model-name {
+        display: block;
+        font-size: 14px;
+        color: #333;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      .model-desc {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        line-height: 1.4;
+      }
+
+      .check-icon {
+        position: absolute;
+        top: 50%;
+        right: 16px;
+        transform: translateY(-50%);
+        color: #6366f1;
+        font-size: 16px;
+        font-weight: bold;
+      }
+    }
+  }
+
+  //--------------  动画  --------------
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  //--------------  滚动条样式  --------------
+  .model-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .model-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .model-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
