@@ -229,8 +229,8 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
         </div>
       )}
 
-      {/* 模型切换器 */}
-      {!isLoading && !error && (
+      {/* 模型切换器 - 仅在鼠标悬停时显示 */}
+      {!isLoading && !error && showControls && (
         <ModelSwitcher
           currentModelId={currentModelId}
           onSwitch={handleSwitchModel}
