@@ -14,7 +14,7 @@ class AgentState(TypedDict):
     messages: list[BaseMessage]
     
     # 路由决策：决定使用哪种工作流
-    workflow_type: Literal["quick_and_detailed", "chat", "image", "video"]
+    workflow_type: Literal["quick_and_detailed", "chat", "image", "video", "mcp_tool"]
     
     # 快速回复（立即返回给用户）
     quick_reply: Optional[str]

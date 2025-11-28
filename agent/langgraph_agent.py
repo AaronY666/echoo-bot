@@ -8,6 +8,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.messages import HumanMessage
 from .state import AgentState
 from .nodes import router_node, chat_node, image_node, video_node
+from .nodes.mcp_tool_node import mcp_tool_node
 from .logger import log
 from .memory_config import (
     ENABLE_MEMORY,
@@ -99,12 +100,13 @@ class LangGraphAgent:
         workflow.add_node("chat", chat_node)
         workflow.add_node("image", image_node)
         workflow.add_node("video", video_node)
+        workflow.add_node("mcp_tool", mcp_tool_node)
         
         #-------------- 设置入口 --------------
         workflow.set_entry_point("router")
         
         #-------------- 定义条件边 --------------
-        def route_after_router(state: AgentState) -> Literal["chat", "image", "video"]:
+        def route_after_router(state: AgentState) -> Literal["chat", "image", "video", "mcp_tool"]:
             """根据 workflow_type 决定下一步"""
             workflow_type = state.get("workflow_type", "chat")
             
@@ -124,6 +126,7 @@ class LangGraphAgent:
                 "chat": "chat",
                 "image": "image",
                 "video": "video",
+                "mcp_tool": "mcp_tool",
             }
         )
         
@@ -131,6 +134,8 @@ class LangGraphAgent:
         workflow.add_edge("chat", END)
         workflow.add_edge("image", END)
         workflow.add_edge("video", END)
+        # mcp_tool 执行后，路由到 chat 进行回复合成
+        workflow.add_edge("mcp_tool", "chat")
         
         # 编译图（传入 checkpointer 以启用持久记忆）
         return workflow.compile(checkpointer=self.checkpointer)

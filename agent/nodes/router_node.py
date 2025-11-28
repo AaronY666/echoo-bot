@@ -79,13 +79,24 @@ def router_node(state: AgentState) -> AgentState:
    - "帮我生成一个视频"
    - "制作一个..."
 
+5. "mcp_tool" - 用户需要调用外部工具或执行系统操作，如：
+   - 打开浏览器、搜索信息
+   - 操作文件、读写文件
+   - 控制系统、执行命令
+   - 调用外部 API 或服务
+   - 任何需要与外部系统交互的请求
+
 请分析用户消息，返回 JSON 格式：
 {
   "workflow_type": "选择的工作流类型",
   "reason": "选择原因（简短说明）"
 }
 
-注意：如果不确定，默认使用 "chat"。只有在用户明确需要复杂处理时才使用 "quick_and_detailed"。"""
+注意：
+- 如果用户明确提到需要"打开"、"搜索"、"操作"、"控制"等动作，优先选择 "mcp_tool"
+- 如果不确定，默认使用 "chat"
+- 只有在用户明确需要复杂处理时才使用 "quick_and_detailed"
+- 不需要猜测具体使用哪个工具，这由后续节点决定"""
 
         user_prompt = f"用户消息：{user_input}\n\n请分析并返回路由决策（JSON格式）："
         
@@ -120,11 +131,11 @@ def router_node(state: AgentState) -> AgentState:
             log(f"⚠️ 路由 LLM 返回格式错误，默认使用 chat: {response_text}")
             workflow_type = "chat"
         
-        # 更新状态
+        # 更新状态（不预测工具，让 mcp_tool_node 自己决定）
         return {
             **state,
             "workflow_type": workflow_type,
-            "task_params": {},
+            "task_params": {},  # 清空，让后续节点自己处理
             "error": None
         }
         
