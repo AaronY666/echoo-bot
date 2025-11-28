@@ -58,6 +58,7 @@ def main():
                 elif message_type == "mcp_add_server":
                     # 动态添加 MCP Server
                     from agent.nodes.mcp_tool_node import get_mcp_manager
+                    from agent.mcp.config import save_mcp_servers
                     mcp_manager = get_mcp_manager()
                     
                     if mcp_manager:
@@ -67,6 +68,11 @@ def main():
                             auth=message.get("auth"),
                             description=message.get("description", "")
                         ))
+                        
+                        # 持久化到配置文件
+                        if success:
+                            save_mcp_servers(mcp_manager.get_server_list())
+                        
                         response = {
                             "type": "mcp_server_added",
                             "success": success,
@@ -81,10 +87,16 @@ def main():
                 elif message_type == "mcp_remove_server":
                     # 移除 MCP Server
                     from agent.nodes.mcp_tool_node import get_mcp_manager
+                    from agent.mcp.config import save_mcp_servers
                     mcp_manager = get_mcp_manager()
                     
                     if mcp_manager:
                         success = asyncio.run(mcp_manager.remove_server(message.get("name")))
+                        
+                        # 持久化到配置文件
+                        if success:
+                            save_mcp_servers(mcp_manager.get_server_list())
+                        
                         response = {
                             "type": "mcp_server_removed",
                             "success": success,
@@ -140,6 +152,67 @@ def main():
                         response = {
                             "type": "mcp_reloaded",
                             "success": success
+                        }
+                    else:
+                        response = {
+                            "type": "error",
+                            "message": "MCP Manager 未初始化"
+                        }
+                
+                elif message_type == "mcp_toggle_server":
+                    # 切换 MCP Server 启用状态
+                    from agent.nodes.mcp_tool_node import get_mcp_manager
+                    from agent.mcp.config import save_mcp_servers
+                    mcp_manager = get_mcp_manager()
+                    
+                    if mcp_manager:
+                        name = message.get("name")
+                        enabled = message.get("enabled", True)
+                        success = asyncio.run(mcp_manager.toggle_server(name, enabled))
+                        
+                        # 持久化到配置文件
+                        if success:
+                            save_mcp_servers(mcp_manager.get_server_list())
+                        
+                        response = {
+                            "type": "mcp_server_toggled",
+                            "success": success,
+                            "name": name,
+                            "enabled": enabled
+                        }
+                    else:
+                        response = {
+                            "type": "error",
+                            "message": "MCP Manager 未初始化"
+                        }
+                
+                elif message_type == "mcp_update_server":
+                    # 更新 MCP Server 配置
+                    from agent.nodes.mcp_tool_node import get_mcp_manager
+                    from agent.mcp.config import save_mcp_servers
+                    mcp_manager = get_mcp_manager()
+                    
+                    if mcp_manager:
+                        name = message.get("name")
+                        url = message.get("url")
+                        auth = message.get("auth")
+                        description = message.get("description")
+                        
+                        success = asyncio.run(mcp_manager.update_server(
+                            name=name,
+                            url=url,
+                            auth=auth,
+                            description=description
+                        ))
+                        
+                        # 持久化到配置文件
+                        if success:
+                            save_mcp_servers(mcp_manager.get_server_list())
+                        
+                        response = {
+                            "type": "mcp_server_updated",
+                            "success": success,
+                            "name": name
                         }
                     else:
                         response = {

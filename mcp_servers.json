@@ -3,7 +3,7 @@
     "name": "autotest_browser",
     "url": "http://localhost:3000/mcp",
     "description": "e2e专用的mcp",
-    "enabled": true,
+    "enabled": false,
     "auth": null
   }
 ]

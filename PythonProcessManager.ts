@@ -215,6 +215,211 @@ export class PythonProcessManager {
     });
   }
 
+  //--------------  MCP Server 管理方法  --------------
+
+  /**
+   * 获取所有 MCP Server 的状态
+   */
+  async getMCPServers(): Promise<Record<string, any>> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_servers_list", handler);
+        reject(new Error("获取 MCP Server 列表超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_servers_list", handler);
+        resolve(data.data || {});
+      };
+
+      this.onMessage("mcp_servers_list", handler);
+
+      const payload = JSON.stringify({ type: "mcp_list_servers" });
+      console.log(`📡 请求 MCP Server 列表`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * Toggle MCP Server 启用状态
+   */
+  async toggleMCPServer(name: string, enabled: boolean): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_server_toggled", handler);
+        reject(new Error("Toggle MCP Server 超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_server_toggled", handler);
+        resolve(data.success || false);
+      };
+
+      this.onMessage("mcp_server_toggled", handler);
+
+      const payload = JSON.stringify({ 
+        type: "mcp_toggle_server", 
+        name, 
+        enabled 
+      });
+      console.log(`🔄 Toggle MCP Server: ${name} -> ${enabled}`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * 添加新的 MCP Server
+   */
+  async addMCPServer(
+    name: string, 
+    url: string, 
+    description?: string, 
+    auth?: any
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_server_added", handler);
+        reject(new Error("添加 MCP Server 超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_server_added", handler);
+        resolve(data.success || false);
+      };
+
+      this.onMessage("mcp_server_added", handler);
+
+      const payload = JSON.stringify({ 
+        type: "mcp_add_server", 
+        name, 
+        url, 
+        description: description || "",
+        auth: auth || null
+      });
+      console.log(`➕ 添加 MCP Server: ${name}`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * 更新 MCP Server 配置
+   */
+  async updateMCPServer(
+    name: string, 
+    url?: string, 
+    description?: string, 
+    auth?: any
+  ): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_server_updated", handler);
+        reject(new Error("更新 MCP Server 超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_server_updated", handler);
+        resolve(data.success || false);
+      };
+
+      this.onMessage("mcp_server_updated", handler);
+
+      const payload = JSON.stringify({ 
+        type: "mcp_update_server", 
+        name, 
+        url, 
+        description,
+        auth
+      });
+      console.log(`✏️ 更新 MCP Server: ${name}`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * 删除 MCP Server
+   */
+  async removeMCPServer(name: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_server_removed", handler);
+        reject(new Error("删除 MCP Server 超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_server_removed", handler);
+        resolve(data.success || false);
+      };
+
+      this.onMessage("mcp_server_removed", handler);
+
+      const payload = JSON.stringify({ 
+        type: "mcp_remove_server", 
+        name 
+      });
+      console.log(`🗑️ 删除 MCP Server: ${name}`);
+      this.send(payload);
+    });
+  }
+
+  /**
+   * 刷新所有 MCP Server
+   */
+  async reloadMCPServers(): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      if (!this.isRunning()) {
+        reject(new Error("Python 进程未运行"));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.removeListener("mcp_reloaded", handler);
+        reject(new Error("刷新 MCP Server 超时"));
+      }, 5000);
+
+      const handler = (data: any) => {
+        clearTimeout(timeout);
+        this.removeListener("mcp_reloaded", handler);
+        resolve(data.success || false);
+      };
+
+      this.onMessage("mcp_reloaded", handler);
+
+      const payload = JSON.stringify({ type: "mcp_reload" });
+      console.log(`🔄 刷新所有 MCP Server`);
+      this.send(payload);
+    });
+  }
+
   /**
    * 检查Agent是否已就绪
    */

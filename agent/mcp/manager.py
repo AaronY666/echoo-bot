@@ -150,21 +150,99 @@ class MCPManager:
             log(f"❌ 重新加载失败: {str(e)}")
             return False
     
+    async def toggle_server(self, name: str, enabled: bool) -> bool:
+        """
+        切换 MCP Server 的启用状态
+        
+        Args:
+            name: Server 名称
+            enabled: 是否启用
+            
+        Returns:
+            是否切换成功
+        """
+        try:
+            if name not in self._server_configs:
+                log(f"⚠️ MCP Server '{name}' 不存在")
+                return False
+            
+            # 更新配置
+            self._server_configs[name]["enabled"] = enabled
+            
+            # 重建客户端（只连接启用的 Server）
+            await self._rebuild_client()
+            
+            status = "启用" if enabled else "禁用"
+            log(f"✅ MCP Server '{name}' 已{status}")
+            return True
+            
+        except Exception as e:
+            log(f"❌ 切换 MCP Server '{name}' 状态失败: {str(e)}")
+            return False
+    
+    async def update_server(self, name: str, url: str = None, auth: dict = None, description: str = None) -> bool:
+        """
+        更新 MCP Server 配置
+        
+        Args:
+            name: Server 名称
+            url: Server URL（可选）
+            auth: 认证信息（可选）
+            description: 描述（可选）
+            
+        Returns:
+            是否更新成功
+        """
+        try:
+            if name not in self._server_configs:
+                log(f"⚠️ MCP Server '{name}' 不存在")
+                return False
+            
+            # 更新配置
+            if url is not None:
+                self._server_configs[name]["url"] = url
+            if auth is not None:
+                self._server_configs[name]["auth"] = auth
+            if description is not None:
+                self._server_configs[name]["description"] = description
+            
+            # 如果 Server 已启用，重建客户端以应用新配置
+            if self._server_configs[name].get("enabled", True):
+                await self._rebuild_client()
+            
+            log(f"✅ MCP Server '{name}' 配置已更新")
+            return True
+            
+        except Exception as e:
+            log(f"❌ 更新 MCP Server '{name}' 配置失败: {str(e)}")
+            return False
+    
     def get_all_tools(self) -> List[dict]:
         """获取所有 MCP Server 的工具列表"""
         return self.registry.get_all_tool_info()
     
-    def get_server_status(self) -> Dict[str, MCPServerStatus]:
-        """获取所有 Server 的状态"""
+    def get_server_status(self) -> Dict[str, dict]:
+        """获取所有 Server 的状态（包含完整配置信息）"""
         status = {}
         for name, config in self._server_configs.items():
             tools = self.registry.get_tools_by_server(name)
+            # 检查该 Server 是否已连接（只有 enabled 的 Server 才会连接）
+            is_enabled = config.get("enabled", True)
+            is_connected = (
+                is_enabled and 
+                self.client is not None and 
+                self.client.is_connected
+            )
+            
             status[name] = {
                 "name": name,
                 "url": config["url"],
-                "connected": self.client is not None and self.client.is_connected,
+                "description": config.get("description", ""),
+                "enabled": is_enabled,
+                "connected": is_connected,
                 "tools_count": len(tools),
-                "last_error": None
+                "last_error": None,
+                "auth": config.get("auth")  # 包含认证信息（前端可能需要显示是否配置了认证）
             }
         return status
     

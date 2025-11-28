@@ -11,6 +11,7 @@ import { DialogBubble } from "@components/DialogBubble";
 import { ChatInput } from "@components/ChatInput";
 import { HistoryPanel } from "@components/HistoryPanel";
 import { ModelSwitcher } from "@components/ModelSwitcher";
+import { MCPPanel } from "@components/MCPPanel";
 import "./index.scss";
 
 /** Live2D宠物组件暴露的方法 */
@@ -33,6 +34,7 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
   //--------------  聊天输入相关状态  --------------
   const [showInput, setShowInput] = React.useState<boolean>(false);
   const [showHistory, setShowHistory] = React.useState<boolean>(false);
+  const [showMCPPanel, setShowMCPPanel] = React.useState<boolean>(false);
   const [userMessage, setUserMessage] = React.useState<string>("");
   const [aiResponse, setAiResponse] = React.useState<string>("");
   const [isThinking, setIsThinking] = React.useState<boolean>(false);
@@ -125,6 +127,11 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
     setShowHistory(!showHistory);
   };
 
+  /** 切换 MCP 管理面板显示 */
+  const handleToggleMCPPanel = (): void => {
+    setShowMCPPanel(!showMCPPanel);
+  };
+
   /** 发送消息给主进程 */
   const handleSendMessage = (): void => {
     const trimmedMessage = userMessage.trim();
@@ -213,6 +220,13 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
           💬
         </button>
         <button
+          className="control-btn mcp-btn"
+          onClick={handleToggleMCPPanel}
+          title="MCP Server 管理"
+        >
+          🔧
+        </button>
+        <button
           className="control-btn minimize-btn"
           onClick={handleMinimize}
           title="最小化"
@@ -290,6 +304,9 @@ const Live2DPet = forwardRef<Live2DPetHandle, {}>((_props, ref) => {
           disabled={isThinking}
         />
       )}
+
+      {/* MCP Server 管理面板 */}
+      <MCPPanel visible={showMCPPanel} onClose={() => setShowMCPPanel(false)} />
     </div>
   );
 });

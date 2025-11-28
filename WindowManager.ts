@@ -77,6 +77,130 @@ class WindowManager {
       }
     });
 
+    //--------------  MCP Server 管理相关 IPC  --------------
+
+    // 获取所有 MCP Server 状态
+    ipcMain.handle("get-mcp-servers", async () => {
+      console.log(`📡 收到获取 MCP Server 列表请求`);
+      if (this.pythonManager) {
+        try {
+          if (!this.pythonManager.isAgentReady()) {
+            console.log("⏳ 等待 Python Agent 初始化完成...");
+            await this.pythonManager.waitForReady(10000);
+          }
+          const servers = await this.pythonManager.getMCPServers();
+          console.log(`✅ 成功获取 MCP Server 列表`);
+          return servers;
+        } catch (err) {
+          console.error("❌ 获取 MCP Server 列表失败:", err);
+          return {};
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return {};
+      }
+    });
+
+    // Toggle MCP Server 状态
+    ipcMain.handle("toggle-mcp-server", async (_event, name: string, enabled: boolean) => {
+      console.log(`🔄 收到 Toggle MCP Server 请求: ${name} -> ${enabled}`);
+      if (this.pythonManager) {
+        try {
+          const success = await this.pythonManager.toggleMCPServer(name, enabled);
+          console.log(`${success ? '✅' : '❌'} Toggle MCP Server ${name}: ${success}`);
+          return success;
+        } catch (err) {
+          console.error("❌ Toggle MCP Server 失败:", err);
+          return false;
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return false;
+      }
+    });
+
+    // 添加新的 MCP Server
+    ipcMain.handle("add-mcp-server", async (_event, config: { name: string; url: string; description?: string; auth?: any }) => {
+      console.log(`➕ 收到添加 MCP Server 请求: ${config.name}`);
+      if (this.pythonManager) {
+        try {
+          const success = await this.pythonManager.addMCPServer(
+            config.name,
+            config.url,
+            config.description,
+            config.auth
+          );
+          console.log(`${success ? '✅' : '❌'} 添加 MCP Server ${config.name}: ${success}`);
+          return success;
+        } catch (err) {
+          console.error("❌ 添加 MCP Server 失败:", err);
+          return false;
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return false;
+      }
+    });
+
+    // 更新 MCP Server 配置
+    ipcMain.handle("update-mcp-server", async (_event, config: { name: string; url?: string; description?: string; auth?: any }) => {
+      console.log(`✏️ 收到更新 MCP Server 请求: ${config.name}`);
+      if (this.pythonManager) {
+        try {
+          const success = await this.pythonManager.updateMCPServer(
+            config.name,
+            config.url,
+            config.description,
+            config.auth
+          );
+          console.log(`${success ? '✅' : '❌'} 更新 MCP Server ${config.name}: ${success}`);
+          return success;
+        } catch (err) {
+          console.error("❌ 更新 MCP Server 失败:", err);
+          return false;
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return false;
+      }
+    });
+
+    // 删除 MCP Server
+    ipcMain.handle("remove-mcp-server", async (_event, name: string) => {
+      console.log(`🗑️ 收到删除 MCP Server 请求: ${name}`);
+      if (this.pythonManager) {
+        try {
+          const success = await this.pythonManager.removeMCPServer(name);
+          console.log(`${success ? '✅' : '❌'} 删除 MCP Server ${name}: ${success}`);
+          return success;
+        } catch (err) {
+          console.error("❌ 删除 MCP Server 失败:", err);
+          return false;
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return false;
+      }
+    });
+
+    // 刷新所有 MCP Server
+    ipcMain.handle("reload-mcp-servers", async () => {
+      console.log(`🔄 收到刷新所有 MCP Server 请求`);
+      if (this.pythonManager) {
+        try {
+          const success = await this.pythonManager.reloadMCPServers();
+          console.log(`${success ? '✅' : '❌'} 刷新 MCP Server: ${success}`);
+          return success;
+        } catch (err) {
+          console.error("❌ 刷新 MCP Server 失败:", err);
+          return false;
+        }
+      } else {
+        console.warn("⚠️ Python 进程未启动");
+        return false;
+      }
+    });
+
     console.log("✅ WindowManager IPC 监听器已设置");
   }
 
@@ -109,6 +233,15 @@ class WindowManager {
     ipcMain.removeAllListeners("set-ignore-mouse-events");
     ipcMain.removeAllListeners("send-chat-message");
     ipcMain.removeHandler("get-chat-history");
+    
+    // 清理 MCP 相关的处理器
+    ipcMain.removeHandler("get-mcp-servers");
+    ipcMain.removeHandler("toggle-mcp-server");
+    ipcMain.removeHandler("add-mcp-server");
+    ipcMain.removeHandler("update-mcp-server");
+    ipcMain.removeHandler("remove-mcp-server");
+    ipcMain.removeHandler("reload-mcp-servers");
+    
     console.log("🧹 WindowManager 监听器已清理");
   }
 }

@@ -1,0 +1,566 @@
+//--------------  MCP Server 管理面板  --------------
+.mcp-panel {
+  position: absolute;
+  left: -420px; // 在模型左侧，和 HistoryPanel 相同位置
+  top: 0;
+  width: 400px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideInFromLeft 0.3s ease-out;
+  z-index: 15;
+  pointer-events: auto; // 防止点击穿透
+
+  //--------------  头部  --------------
+  .mcp-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%);
+    flex-shrink: 0;
+
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+      }
+
+      &:active:not(:disabled) {
+        transform: translateY(0);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  //--------------  主体内容  --------------
+  .mcp-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+
+  //--------------  底部操作栏  --------------
+  .mcp-panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  //--------------  加载/空/错误状态  --------------
+  .loading-state,
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: rgba(0, 0, 0, 0.6);
+    font-size: 14px;
+
+    p {
+      margin: 16px 0;
+    }
+  }
+
+  //--------------  服务器列表  --------------
+  .server-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .server-item {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    gap: 12px;
+    transition: all 0.2s ease;
+    animation: fadeInUp 0.3s ease-out;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .server-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .server-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+
+      h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .server-badges {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+    }
+
+    .server-description {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      color: rgba(0, 0, 0, 0.6);
+      line-height: 1.4;
+    }
+
+    .server-url {
+      margin: 0;
+      font-size: 11px;
+      color: rgba(0, 0, 0, 0.5);
+      font-family: 'Consolas', 'Monaco', monospace;
+      word-break: break-all;
+    }
+
+    .server-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+  }
+
+  //--------------  Badge 标签  --------------
+  .badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+
+    &.badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #059669;
+    }
+
+    &.badge-gray {
+      background: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    &.badge-info {
+      background: rgba(59, 130, 246, 0.15);
+      color: #2563eb;
+    }
+  }
+
+  //--------------  Toggle 开关  --------------
+  .switch {
+    $switch-height: 20px;
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: $switch-height;
+    flex-shrink: 0;
+
+    input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+
+      &:checked + .slider {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      }
+
+      &:checked + .slider:before {
+        transform: translateX(16px);
+      }
+
+      &:disabled + .slider {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      border-radius: 20px;
+
+      &:before {
+        position: absolute;
+        content: "";
+        height: calc($switch-height - 6px);
+        width: calc($switch-height - 6px);
+        left: 3px;
+        bottom: 3px;
+        background: white;
+        transition: transform 0.3s ease;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+    }
+  }
+
+  //--------------  按钮样式  --------------
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white !important; // 确保文字是白色
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+  }
+
+  .btn-secondary {
+    background: rgba(0, 0, 0, 0.05);
+    color: #333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+
+    &:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+  }
+
+  //--------------  文字按钮样式  --------------
+  .btn-text {
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &.btn-edit {
+      color: #6366f1;
+
+      &:hover:not(:disabled) {
+        background: rgba(99, 102, 241, 0.1);
+        color: #5558e3;
+      }
+
+      &:active:not(:disabled) {
+        background: rgba(99, 102, 241, 0.15);
+      }
+    }
+
+    &.btn-delete {
+      color: #ef4444;
+
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.1);
+        color: #dc2626;
+      }
+
+      &:active:not(:disabled) {
+        background: rgba(239, 68, 68, 0.15);
+      }
+    }
+  }
+
+  //--------------  表单样式  --------------
+  .server-form-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+    z-index: 20;
+    pointer-events: auto; // 确保遮罩层可以捕获点击事件
+  }
+
+  .server-form {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    width: calc(100% - 32px);
+    max-height: calc(100% - 32px);
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: slideInFromBottom 0.3s ease-out;
+
+    h4 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #555;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        border-radius: 6px;
+        font-size: 13px;
+        transition: all 0.2s ease;
+        background: white;
+        box-sizing: border-box;
+
+        &:focus {
+          outline: none;
+          border-color: #6366f1;
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+        }
+
+        &:disabled {
+          background: rgba(0, 0, 0, 0.05);
+          cursor: not-allowed;
+        }
+
+        &::placeholder {
+          color: rgba(0, 0, 0, 0.4);
+        }
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 50px;
+        font-family: inherit;
+      }
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+  }
+
+  //--------------  确认对话框  --------------
+  .confirm-dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+    z-index: 20;
+    pointer-events: auto; // 确保遮罩层可以捕获点击事件
+  }
+
+  .confirm-dialog {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    width: calc(100% - 64px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: slideInFromBottom 0.3s ease-out;
+
+    h4 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    p {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.5;
+
+      strong {
+        font-weight: 600;
+        color: #333;
+      }
+    }
+
+    .warning-text {
+      color: #ef4444;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .dialog-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+  }
+}
+
+//--------------  动画定义  --------------
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromBottom {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
